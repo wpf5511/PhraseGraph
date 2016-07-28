@@ -43,7 +43,7 @@ bool PhraseGraph::is_end(int nodeid) {
 
     auto pos = node.pos;
 
-    if(pos=="NN"||pos=="NR"||pos=="NT"){
+    if(pos=="NN"||pos=="NR"||pos=="NT"||pos=="PN"){
         return true;
     }else{
         return false;
@@ -171,9 +171,17 @@ std::string PhraseGraph::to_string() {
 
     std::ostringstream out;
     for(int i=0;i<ztree.nodes.size();i++){
+
+        int node_phrase_id = node_to_phrase[i];
+
+        auto phrase = phrases[node_phrase_id];
+
+        auto flag=phrase.isArgument;
+
         auto node = ztree.get_Node(i);
-        out<<node.id<<"\t"<<node.lexeme<<"\t"<<node.pos<<"\t"<<node.parent_id<<"\t"
-        <<node.dependency<<"\t"<<node.isVirtual<<"\t"<<node.isSlot<<"\t"<<node.link<<std::endl;
+
+        out<<node.lexeme<<"\t"<<node.pos<<"\t"<<node.parent_id<<"\t"
+        <<node.dependency<<"\t"<<node.isVirtual<<"\t"<<node.isSlot<<"\t"<<flag<<"\t"<<node_phrase_id<<std::endl;
     }
     return out.str();
 }

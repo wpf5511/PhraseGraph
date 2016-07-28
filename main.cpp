@@ -47,11 +47,11 @@ int main() {
 
     //for(int i=0;i<zpars.size();i++){
 
-        zpars[0].preprocessing(verb_dict);
+        zpars[1].preprocessing(verb_dict);
 
         cout<<"hello"<<endl;
 
-        PhraseGraph graph(zpars[0]);
+        PhraseGraph graph(zpars[1]);
 
         graph.extract_Template();
 
