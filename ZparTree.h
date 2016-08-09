@@ -13,11 +13,6 @@
 #include <cereal/types/vector.hpp>
 class ZparNode{
     public:
-         int get_parent();
-         std::string get_pos();
-         std::string get_dependency();
-         std::string get_lexeme();
-         int get_id();
 
         ZparNode()= default;
 
@@ -34,6 +29,10 @@ class ZparNode{
          }
 
 
+        int idInDocument;
+        int idInSentence;
+        int idInPhrase;
+
         int id;  //word position in the sentence
         int level;
         int sentense_position;
@@ -46,6 +45,7 @@ class ZparNode{
 
         bool isSlot;
         int link;
+        std::vector<int> children;
 
 
 };

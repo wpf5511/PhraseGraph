@@ -47,6 +47,9 @@ ZparNode::ZparNode(const ZparNode &node) {
     this->isSlot = node.isSlot;
     this->link =node.link;
     this->level = node.level;
+    this->idInDocument = node.idInDocument;
+    this->idInSentence = node.idInSentence;
+    this->children = node.children;
 }
 
 
@@ -110,9 +113,13 @@ void ZparTree::set_children_array() {
 
     children_array.clear();
     for(int i=0;i<nodes.size();i++){
-        if(nodes[i].get_parent()!=-1){
-            children_array[nodes[i].get_parent()].push_back(i);
+        if(nodes[i].parent_id!=-1){
+            children_array[nodes[i].parent_id].push_back(i);
         }
+    }
+    for(int j=0;j<nodes.size();j++){
+        auto &node = nodes[j];
+        node.children = children_array.at(j);
     }
 
 }
@@ -132,7 +139,7 @@ std::string ZparTree::to_sentence() {
     std::ostringstream out_sen;
 
     for(int i=0;i<nodes.size();i++){
-        out_sen<<nodes[i].get_lexeme()<<" ";
+        out_sen<<nodes[i].lexeme<<" ";
     }
     return out_sen.str();
 }

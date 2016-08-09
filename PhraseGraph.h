@@ -11,19 +11,41 @@
 #include <cereal/archives/binary.hpp>
 #include <fstream>
 
+class PhraseIdentify{
+
+    int  idInDocument;
+    int  idInSentence;
+    int  PhraseId;
+
+};
+
 
 class Phrase{
 public:
+
+    int idInDocument;
+    int idInSentence;
+
     int id;   //the id of the phrase
     int head;
+    int nargs=0;
+
     std::vector<int> components;   //the list of dependency nodes
+    std::string content;
 
     bool isPredicate;
     bool isArgument;
+    bool isCoo;
+
 
     std::vector<int> slots;    //list all the slot nodes
 
-    int nargs=0;
+    std::vector<int> Coos;
+
+    PhraseIdentify coreferPhrase;//指向的Phrase
+
+
+
 
     Phrase()= default;
 
@@ -60,6 +82,12 @@ public:
     std::map<int,Phrase> phrases;
     std::map<int,int> node_to_phrase;
 
+    static std::map<std::string,bool> hashPOSOfNoun;
+    static std::map<std::string,bool> hashPOSOfVerb;
+
+    static std::map<std::string,bool> hashPOSOfNPHead;
+    static std::map<std::string,bool> hashPOSOfNOModifier;
+
     template <class Archive>
     void serialize( Archive & ar )
     {
@@ -72,7 +100,19 @@ public:
     PhraseGraph()= default;
     void extract_Template();
     bool is_end(int nodeid);
-    void dfs(int start,int previous,int *visited,Phrase* extract_phrase,int* pid);
+    bool is_verb(int nodeid);
+    bool is_noun(int nodeid);
+    bool CanBeModifier(int nodeid);
+    bool CanBeHead(int nodeid);
+
+    void dfsnn(int start,int previous,int *visited,Phrase* extract_phrase,int* pid,std::map<int,bool>&hashIncluded,std::vector<int>&vvec);
+
+
+    void dfscm(int start,int previous,int *visited,Phrase* extract_phrase,int* pid,std::map<int,bool>&hashIncluded,std::vector<int>&vvec);
+
+
+    void dfsvv(int start,int previous,int *visited,Phrase* extract_phrase,int* pid,std::map<int,bool>hashIncluded);
+
     void find_head(Phrase* phrase);
     std::string to_string();
 
@@ -82,6 +122,7 @@ public:
 class Graphs{
 public:
     std::vector<PhraseGraph>phrasegraphs;
+    std::map<PhraseIdentify,Phrase> phrase_map;
 public:
 
 
