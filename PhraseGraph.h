@@ -13,9 +13,18 @@
 
 class PhraseIdentify{
 
+public:
     int  idInDocument;
     int  idInSentence;
     int  PhraseId;
+
+    PhraseIdentify(int DocId,int SenId,int PhId){
+        idInDocument = DocId;
+        idInSentence = SenId;
+        PhraseId = PhId;
+    }
+
+    PhraseIdentify()= default;
 
 };
 
@@ -31,10 +40,11 @@ public:
     int nargs=0;
 
     std::vector<int> components;   //the list of dependency nodes
-    std::string content;
+    std::string content;          //content of the phrase
 
     bool isPredicate;
     bool isArgument;
+    bool isPresent;
     bool isCoo;
 
 
@@ -43,8 +53,6 @@ public:
     std::vector<int> Coos;
 
     PhraseIdentify coreferPhrase;//指向的Phrase
-
-
 
 
     Phrase()= default;
@@ -79,7 +87,12 @@ public:
 class PhraseGraph {
 public:
     ZparTree ztree;
-    std::map<int,Phrase> phrases;
+    int idInDocument;
+    int idInSentence;
+    std::map<int,Phrase> phrases;//value type should change to id.
+
+    std::map<int,PhraseIdentify> pid_to_ident;
+
     std::map<int,int> node_to_phrase;
 
     static std::map<std::string,bool> hashPOSOfNoun;
@@ -114,6 +127,9 @@ public:
     void dfsvv(int start,int previous,int *visited,Phrase* extract_phrase,int* pid,std::map<int,bool>hashIncluded);
 
     void find_head(Phrase* phrase);
+
+    void set_content();
+
     std::string to_string();
 
 };

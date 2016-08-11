@@ -3,8 +3,7 @@
 //
 
 #include "PhraseGraph.h"
-#include <sstream>
-#include <fstream>
+#include <algorithm>
 
 
 std::map<std::string,bool>  PhraseGraph::hashPOSOfNoun{
@@ -68,7 +67,6 @@ void PhraseGraph::extract_Template() {
 
         phrases.insert({new_phrase->id,*new_phrase});
         node_to_phrase.insert({rootid,new_phrase->id});
-
 
         dfsnn(rootid,-1,new_phrase,global_pid,hashIncluded,vvUndernn);
 
@@ -405,4 +403,26 @@ std::string PhraseGraph::to_string() {
         <<node.dependency<<"\t"<<node.isVirtual<<"\t"<<node.isSlot<<"\t"<<flag<<"\t"<<node_phrase_id<<std::endl;
     }
     return out.str();
+}
+
+bool PosComp(int nodeid1,int nodeid2,ZparTree ztree){
+
+    auto node1=ztree.get_Node(nodeid1);
+    auto node2=ztree.get_Node(nodeid2);
+
+    return node1.sentense_position<node2.sentense_position;
+}
+void PhraseGraph::set_content() {
+    for(auto itor = phrases.begin();itor!=phrases.end();itor++){
+        auto &phrase = itor->second;
+
+        auto comvec = phrase.components;
+
+        std::sort(comvec.begin(),comvec.end(),std::bind(PosComp,std::placeholders::_1,std::placeholders::_2,ztree));
+
+        for(int nodeid:comvec){
+            auto word = ztree.get_Node(nodeid).lexeme;
+            phrase.content = phrase.content+word+"_";
+        }
+    }
 }

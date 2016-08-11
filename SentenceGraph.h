@@ -17,7 +17,16 @@ class SentenceGraph {
 struct SentenceIdentify{
     int  idInDocument;
     int  sentenceId;
-};å
+    SentenceIdentify(int Docid,int Senid){
+        idInDocument = Docid;
+        sentenceId = Senid;
+    }
+};
+
+class Sentences{
+public:
+    std::map<SentenceIdentify,SentenceGraph> sentence_map;
+};
 
 
 
