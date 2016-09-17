@@ -6,25 +6,44 @@
 #define PHRASEGRAPH_PHRASEGRAPH_H
 
 #include "ZparTree.h"
+#include "CommonTool.h"
 #include <cereal/types/map.hpp>
 #include <cereal/types/memory.hpp>
 #include <cereal/archives/binary.hpp>
 #include <fstream>
+#include "SentenceGraph.h"
 
-class PhraseIdentify{
+
+class PhraseIdentity{
 
 public:
     int  idInDocument;
     int  idInSentence;
     int  PhraseId;
 
-    PhraseIdentify(int DocId,int SenId,int PhId){
+    PhraseIdentity(int DocId,int SenId,int PhId){
         idInDocument = DocId;
         idInSentence = SenId;
         PhraseId = PhId;
     }
 
-    PhraseIdentify()= default;
+    PhraseIdentity()= default;
+
+    bool operator<(const PhraseIdentity&other) const{
+        if(this->idInDocument!=other.idInDocument){
+            return this->idInDocument<other.idInDocument;
+        } else if(this->idInSentence!=other.idInSentence){
+            return this->idInSentence<other.idInSentence;
+        } else{
+            return this->PhraseId<other.PhraseId;
+        }
+    }
+
+    template <class Archive>
+    void serialize( Archive & ar )
+    {
+        ar(idInDocument,idInSentence,PhraseId);
+    }
 
 };
 
@@ -44,18 +63,23 @@ public:
 
     bool isPredicate;
     bool isArgument;
-    bool isPresent;
+    bool isRepresent;
     bool isCoo;
+    bool isNE;
 
+    std::string entityType;
 
     std::vector<int> slots;    //list all the slot nodes
 
     std::vector<int> Coos;
 
-    PhraseIdentify coreferPhrase;//指向的Phrase
-
+    PhraseIdentity coreferPhrase;//指向的Phrase
 
     Phrase()= default;
+
+    bool operator< (const Phrase& other)const{
+        return this->head<other.head;
+    };
 
     template <class Archive>
     void serialize( Archive & ar )
@@ -89,9 +113,11 @@ public:
     ZparTree ztree;
     int idInDocument;
     int idInSentence;
-    std::map<int,Phrase> phrases;//value type should change to id.
+   // std::map<int,Phrase> phrases;//value type should change to id.  former structure
 
-    std::map<int,PhraseIdentify> pid_to_ident;
+    std::string sen_content;
+
+    std::map<int,PhraseIdentity> pid_to_ident;
 
     std::map<int,int> node_to_phrase;
 
@@ -104,33 +130,48 @@ public:
     template <class Archive>
     void serialize( Archive & ar )
     {
-        ar(ztree,phrases,node_to_phrase);
+        ar(ztree,node_to_phrase);
     }
 
 
 public:
     PhraseGraph(ZparTree ztree);
     PhraseGraph()= default;
-    void extract_Template();
+    void extract_Phrases(std::map<PhraseIdentity,Phrase> &phrase_map);
     bool is_end(int nodeid);
     bool is_verb(int nodeid);
     bool is_noun(int nodeid);
     bool CanBeModifier(int nodeid);
     bool CanBeHead(int nodeid);
 
-    void dfsnn(int start,int previous,int *visited,Phrase* extract_phrase,int* pid,std::map<int,bool>&hashIncluded,std::vector<int>&vvec);
+    void dfsnn(int start,int previous,Phrase* extract_phrase,int* pid,std::map<int,bool>&hashIncluded,std::vector<int>&vvec,std::map<PhraseIdentity,Phrase> &phrase_map);
 
 
-    void dfscm(int start,int previous,int *visited,Phrase* extract_phrase,int* pid,std::map<int,bool>&hashIncluded,std::vector<int>&vvec);
+    void dfscm(int start,int previous,Phrase* extract_phrase,int* pid,std::map<int,bool>&hashIncluded,std::vector<int>&vvec,std::map<PhraseIdentity,Phrase> &phrase_map);
 
 
-    void dfsvv(int start,int previous,int *visited,Phrase* extract_phrase,int* pid,std::map<int,bool>hashIncluded);
+    void dfsvv(int start,int previous,int *visited,Phrase* extract_phrase,int* pid,std::map<int,bool>hashIncluded,std::map<PhraseIdentity,Phrase> &phrase_map);
 
     void find_head(Phrase* phrase);
 
-    void set_content();
+    void set_content(std::map<PhraseIdentity,Phrase> &phrase_map);
 
-    std::string to_string();
+    std::string to_string(const std::map<PhraseIdentity,Phrase> &phrase_map);
+
+    void addNEtoPhrase(NEPMAP neps,std::map<PhraseIdentity,Phrase> &phrase_map);
+
+
+    PhraseIdentity getPhraseIdent(int phrase_id){
+
+        return PhraseIdentity(idInDocument,idInSentence,phrase_id);
+
+    }
+
+    SentenceIdentity getSenIdent(){
+        return  SentenceIdentity(idInDocument,idInSentence);
+    }
+
+
 
 };
 
@@ -138,20 +179,23 @@ public:
 class Graphs{
 public:
     std::vector<PhraseGraph>phrasegraphs;
-    std::map<PhraseIdentify,Phrase> phrase_map;
+    std::map<PhraseIdentity,Phrase> phrase_map;
+
+
+    void addCorefertoPhrase(std::map<SentenceIdentity,SentenceGraph> sentence_map,
+                            std::map<PhraseIdentity,Phrase> &phrase_map,std::vector<Corefer> corefers);
+
+
 public:
 
 
     template <class Archive>
     void serialize( Archive & ar )
     {
-        ar(phrasegraphs);
+        ar(phrase_map);
     }
 
 
-    //void load_Graphs(std::string graphfile);
-
-    //void save_Graphs(std::string graphfile);
 };
 
 

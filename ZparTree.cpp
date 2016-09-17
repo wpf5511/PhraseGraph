@@ -5,18 +5,11 @@
 #include "ZparTree.h"
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 
 //ZparNode method
 
-int ZparNode::get_parent() {
-    return this->parent_id;
-}
-
-int ZparNode::get_id(){
-    return this->id;
-}
-
-ZparNode::ZparNode(std::string lexeme, std::string pos, int parent_id, std::string dependency,
+ZparNode::ZparNode(std::string lexeme, std::string pos, int parent_id, std::string dependency,int idInDocument,int idInSentence,
                    bool isVirtual,bool isSlot,int link,int level) {
 
     this->lexeme = lexeme;
@@ -30,8 +23,10 @@ ZparNode::ZparNode(std::string lexeme, std::string pos, int parent_id, std::stri
      this->isSlot= isSlot;
      this->link= link;
 
-    this->level= level;
+     this->level= level;
 
+     this->idInDocument = idInDocument;
+     this->idInSentence = idInSentence;
 }
 
 ZparNode::ZparNode(const ZparNode &node) {
@@ -49,24 +44,7 @@ ZparNode::ZparNode(const ZparNode &node) {
     this->level = node.level;
     this->idInDocument = node.idInDocument;
     this->idInSentence = node.idInSentence;
-    this->children = node.children;
 }
-
-
-
-std::string ZparNode::get_pos() {
-    return this->pos;
-}
-
-std::string ZparNode::get_dependency() {
-    return this->dependency;
-}
-
-std::string ZparNode::get_lexeme() {
-    return this->lexeme;
-}
-
-
 
 
 //ZparTree method
@@ -95,13 +73,38 @@ void ZparTree::add_node(ZparNode node2,int sentence_position) {
 
     node2.sentense_position=sentence_position;
 
-    node2.isVirtual = true;
-
     if(node2.parent_id==-1){
         root_id=j;
     }
 
     this->nodes.push_back(node2);
+
+}
+
+
+void ZparTree::add_node(ZparNode node3,bool has_id){
+
+    if(has_id){
+
+        if(node3.level<this->min_level){
+            min_level = node3.level;
+            root_id=node3.id;
+        }
+
+        this->nodes.push_back(node3);
+
+    }
+
+}
+
+
+void ZparTree::add_slot(ZparNode node3,bool has_id){
+
+    if(has_id){
+
+        this->nodes.push_back(node3);
+
+    }
 
 }
 
@@ -114,13 +117,10 @@ void ZparTree::set_children_array() {
     children_array.clear();
     for(int i=0;i<nodes.size();i++){
         if(nodes[i].parent_id!=-1){
-            children_array[nodes[i].parent_id].push_back(i);
+            children_array[nodes[i].parent_id].push_back(nodes[i].id);
         }
     }
-    for(int j=0;j<nodes.size();j++){
-        auto &node = nodes[j];
-        node.children = children_array.at(j);
-    }
+
 
 }
 
@@ -131,8 +131,16 @@ std::vector<int> ZparTree::get_children(int id) {
 }
 
 
-ZparNode& ZparTree::get_Node(int id) {
-    return nodes[id];
+ZparNode& ZparTree::get_Node(int nodeid) {
+
+    //按照node在句子中的顺序排序
+    std::sort(nodes.begin(),nodes.end());
+
+    for(int i=0;i<nodes.size();i++){
+        if(nodes[i].id==nodeid){
+            return nodes[i];
+        }
+    }
 }
 
 std::string ZparTree::to_sentence() {
@@ -163,7 +171,9 @@ void ZparTree::preprocessing(std::set<std::string> verb_dict) {
             if(dec_parent_pos=="VA"||dec_parent_pos=="VC"||dec_parent_pos=="VE"||dec_parent_pos=="VV"){
 
                 znode.parent_id =nodes.size();
-                add_node(ZparNode("","NN",parent_id,znode.dependency),i+1);
+
+                int DocId = znode.idInDocument;int SentenceId = znode.idInSentence;
+                add_node(ZparNode("","NN",parent_id,znode.dependency,DocId,SentenceId),i+1);
 
                 auto &zznode = get_Node(i);
 
@@ -187,3 +197,48 @@ void ZparTree::set_level(int id,int level){
     }
 
 }
+
+std::vector<int> ZparTree::getPathFromRoot(int nodeid){
+
+    auto node =get_Node(nodeid);
+    std::vector<int>path;
+
+    while(node.parent_id!=-1){
+        node = get_Node(node.parent_id);
+        path.push_back(node.id);
+    }
+    std::reverse(path.begin(),path.end());
+    return  path;
+}
+
+int  ZparTree::getLca(int id1,int id2){
+
+    std::vector<int> path1 = getPathFromRoot(id1);
+    std::vector<int> path2 = getPathFromRoot(id2);
+
+    int min_len = std::min(path1.size(),path2.size());
+
+    if(min_len==0){
+        int lca_idx = 0;
+        if(path1.size()>0){
+            return path1[lca_idx];
+        } else{
+            return path2[lca_idx];
+        }
+    }
+
+    int i;
+    for(i=0;i<min_len;i++){
+        if(path1[i]!=path2[i])
+            break;
+    }
+
+    if(path1[i]==path2[i]){
+        int lca_idx = i;
+        return  path1[lca_idx];
+    } else{
+        int lca_idx = i-1;
+        return path1[lca_idx];
+    }
+}
+

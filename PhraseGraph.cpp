@@ -3,6 +3,7 @@
 //
 
 #include "PhraseGraph.h"
+#include <cmath>
 #include <algorithm>
 
 
@@ -45,7 +46,7 @@ std::map<std::string,bool> PhraseGraph::hashPOSOfNOModifier{
         {"DEG", true} //的
 
 };
-void PhraseGraph::extract_Template() {
+void PhraseGraph::extract_Phrases(std::map<PhraseIdentity,Phrase> &phrase_map) {
 
 
     int rootid = ztree.root_id;
@@ -65,16 +66,30 @@ void PhraseGraph::extract_Template() {
 
         new_phrase->add_component(rootid);
 
-        phrases.insert({new_phrase->id,*new_phrase});
+        //phrases.insert({new_phrase->id,*new_phrase});   former structure
+
+        auto Pident = getPhraseIdent(new_phrase->id);  // latter structure
+
+        phrase_map.insert({Pident,*new_phrase});        // latter structure
+
+        pid_to_ident.insert({new_phrase->id,Pident});   //latter structure
+
         node_to_phrase.insert({rootid,new_phrase->id});
 
-        dfsnn(rootid,-1,new_phrase,global_pid,hashIncluded,vvUndernn);
+        dfsnn(rootid,-1,new_phrase,global_pid,hashIncluded,vvUndernn,phrase_map);
 
     } else{
 
-        phrases.insert({new_phrase->id,*new_phrase});
+        // phrases.insert({new_phrase->id,*new_phrase});  former structure
 
-        dfscm(rootid,-1,new_phrase,global_pid,hashIncluded,vvUndernn);
+        auto Pident = getPhraseIdent(new_phrase->id);  // latter structure
+
+        phrase_map.insert({Pident,*new_phrase});        // latter structure
+
+        pid_to_ident.insert({new_phrase->id,Pident});   //latter structure
+
+
+        dfscm(rootid,-1,new_phrase,global_pid,hashIncluded,vvUndernn,phrase_map);
 
     }
 
@@ -91,17 +106,40 @@ void PhraseGraph::extract_Template() {
         if(visited[node_id]==0){
             Phrase* vv_phrase= new Phrase(*global_pid+1);
             *global_pid = *global_pid+1;
-            dfsvv(node_id,-1,visited,vv_phrase,);
-            phrases.insert({new_phrase->id,*vv_phrase});
+            dfsvv(node_id,-1,visited,vv_phrase,global_pid,hashIncluded,phrase_map);
+            // phrases.insert({vv_phrase->id,*vv_phrase});  former structure
+
+            auto Pident = getPhraseIdent(vv_phrase->id);  // latter structure
+
+            phrase_map.insert({Pident,*vv_phrase});        // latter structure
+
+            pid_to_ident.insert({vv_phrase->id,Pident});   //latter structure
+
+
         }
     }
 
 
 
-    for(int j=0;j<phrases.size();j++){
+    // former structure
+    /*for(int j=0;j<phrases.size();j++){
         Phrase *phrase_head = &phrases.at(j);
         find_head(phrase_head);
+    }*/
+
+
+    //phrase_id from 0 to n
+    for(int j=0;j<pid_to_ident.size();j++){
+
+        auto Pident =pid_to_ident.at(j);
+
+        Phrase *phrase_head = &phrase_map.at(Pident);
+
+        find_head(phrase_head);
     }
+
+
+    set_content(phrase_map);
 }
 
 bool PhraseGraph::is_end(int nodeid) {
@@ -167,9 +205,14 @@ bool PhraseGraph::CanBeHead(int nodeid){
     }
 };
 
-void PhraseGraph::dfscm(int start,int previous,Phrase* extract_phrase,int* global_pid,std::map<int,bool>&hasIncluded,std::vector<int>&vvec){
+void PhraseGraph::dfscm(int start,int previous,Phrase* extract_phrase,int* global_pid,std::map<int,bool>&hasIncluded,std::vector<int>&vvec,std::map<PhraseIdentity,Phrase> &phrase_map){
 
-    extract_phrase = &phrases.at(extract_phrase->id);
+    auto extract_phrase_ident = getPhraseIdent(extract_phrase->id);
+
+    // extract_phrase = &phrases.at(extract_phrase->id);  former structure
+
+    extract_phrase = &phrase_map.at(extract_phrase_ident);  // latter structure
+
 
     auto &cur_node = ztree.get_Node(start);
 
@@ -191,11 +234,13 @@ void PhraseGraph::dfscm(int start,int previous,Phrase* extract_phrase,int* globa
 
         std::string slot_dep = cur_node.dependency;
 
-        ZparNode slot_node = ZparNode("","",previous,slot_dep, true, true,start);  //注意根是名词的情况
+        int DocId = ztree.idInDocument; int SenId = ztree.idInSentence;
+
+        ZparNode slot_node = ZparNode("*","*",previous,slot_dep,DocId,SenId,true,true,start);  //注意根是名词的情况
 
         int slot_id = ztree.nodes.size();
 
-        ztree.add_node(slot_node);
+        ztree.add_node(slot_node,start);
 
         // arg_phrase->add_slot(slot_id);  //为arg有关的slot添加反向索引
 
@@ -210,7 +255,17 @@ void PhraseGraph::dfscm(int start,int previous,Phrase* extract_phrase,int* globa
 
         //创建完arg_phrase后,立即insert
         node_to_phrase.insert({start,arg_phrase->id});
-        phrases.insert({arg_phrase->id,*arg_phrase});
+
+
+        //phrases.insert({arg_phrase->id,*arg_phrase});
+
+
+        auto Pident = getPhraseIdent(arg_phrase->id);  // latter structure
+
+        phrase_map.insert({Pident,*arg_phrase});        // latter structure
+
+        pid_to_ident.insert({arg_phrase->id,Pident});   //latter structure
+
 
 
         if(is_noun(start)){
@@ -222,7 +277,7 @@ void PhraseGraph::dfscm(int start,int previous,Phrase* extract_phrase,int* globa
 
                 int child_id = children_id[i];
 
-                dfsnn(child_id,start,arg_phrase,global_pid,hasIncluded,vvec);
+                dfsnn(child_id,start,arg_phrase,global_pid,hasIncluded,vvec,phrase_map);
 
             }
 
@@ -230,7 +285,7 @@ void PhraseGraph::dfscm(int start,int previous,Phrase* extract_phrase,int* globa
             // verb is end,also is a predicate phrase
             for(int i=0;i<children_id.size();i++){
                 int child_id = children_id[i];
-                dfscm(child_id,start,arg_phrase,global_pid,hasIncluded,vvec);
+                dfscm(child_id,start,arg_phrase,global_pid,hasIncluded,vvec,phrase_map);
             }
 
         }
@@ -242,21 +297,25 @@ void PhraseGraph::dfscm(int start,int previous,Phrase* extract_phrase,int* globa
 
         for(int i=0;i<children_id.size();i++){
             int child_id = children_id[i];
-            dfscm(child_id,start,extract_phrase,global_pid,hasIncluded,vvec);
+            dfscm(child_id,start,extract_phrase,global_pid,hasIncluded,vvec,phrase_map);
         }
 
     }
 }
 
 //从arg_nn 开始遍历,找np phrase
-void PhraseGraph::dfsnn(int start,int previous,Phrase* arg_phrase,int* global_pid,std::map<int,bool>&hasIncluded,std::vector<int>&vvec){
+void PhraseGraph::dfsnn(int start,int previous,Phrase* arg_phrase,int* global_pid,std::map<int,bool>&hasIncluded,std::vector<int>&vvec,std::map<PhraseIdentity,Phrase> &phrase_map){
 
-    arg_phrase = &phrases.at(arg_phrase->id);
+    auto arg_phrase_ident = getPhraseIdent(arg_phrase->id);
+
+    //arg_phrase = &phrases.at(arg_phrase->id);
+
+    arg_phrase = &phrase_map.at(arg_phrase_ident);  // latter structure
 
     std::vector<int> children_id = ztree.get_children(start);
 
     //parent is head,current is modifier
-    if(CanBeModifier(start)&&hasIncluded[previous]&&!hasIncluded[start]){
+    if(CanBeModifier(start)&&hasIncluded.find(previous)!=hasIncluded.end()&&hasIncluded.find(start)==hasIncluded.end()){
 
         hasIncluded.insert({start,true});
 
@@ -265,7 +324,7 @@ void PhraseGraph::dfsnn(int start,int previous,Phrase* arg_phrase,int* global_pi
         node_to_phrase.insert({start,arg_phrase->id});
     }
     //current is head,parent is not head
-    else if(CanBeHead(start)&&!hasIncluded[previous]&&!hasIncluded[start]){
+    else if(CanBeHead(start)&&hasIncluded.find(previous)==hasIncluded.end()&&hasIncluded.find(start)==hasIncluded.end()){
         //创建新的phrase
 
         arg_phrase = new Phrase(*global_pid+1);
@@ -276,7 +335,15 @@ void PhraseGraph::dfsnn(int start,int previous,Phrase* arg_phrase,int* global_pi
 
         //创建完arg_phrase后,立即insert
         node_to_phrase.insert({start,arg_phrase->id});
-        phrases.insert({arg_phrase->id,*arg_phrase});
+
+        // phrases.insert({arg_phrase->id,*arg_phrase});  former structure
+
+        auto Pident = getPhraseIdent(arg_phrase->id);  // latter structure
+
+        phrase_map.insert({Pident,*arg_phrase});        // latter structure
+
+        pid_to_ident.insert({arg_phrase->id,Pident});   //latter structure
+
 
         hasIncluded.insert({arg_phrase->id,true});
 
@@ -294,14 +361,14 @@ void PhraseGraph::dfsnn(int start,int previous,Phrase* arg_phrase,int* global_pi
 
         int child_id = children_id[i];
 
-        dfsnn(child_id,start,arg_phrase,global_pid,hasIncluded,vvec);
+        dfsnn(child_id,start,arg_phrase,global_pid,hasIncluded,vvec,phrase_map);
 
     }
 
 }
 
 //从nn下的vv开始遍历,可上可下,到np停止(可能到np的modifier而不是到np的head)
-void PhraseGraph::dfsvv(int start,int previous,int *visited,Phrase* extract_phrase,int* pid,std::map<int,bool>hashIncluded){
+void PhraseGraph::dfsvv(int start,int previous,int *visited,Phrase* extract_phrase,int* pid,std::map<int,bool>hashIncluded, std::map<PhraseIdentity,Phrase> &phrase_map){
 
     auto &cur_node = ztree.get_Node(start);
 
@@ -330,11 +397,13 @@ void PhraseGraph::dfsvv(int start,int previous,int *visited,Phrase* extract_phra
             slot_parent = start;
         }
 
-        ZparNode slot_node = ZparNode("","",slot_parent,slot_dep, true, true,start);
+        int DocId = ztree.idInDocument; int SenId = ztree.idInSentence;
+
+        ZparNode slot_node = ZparNode("*","*",slot_parent,slot_dep, DocId,SenId,true, true,start);
 
         int slot_id = ztree.nodes.size();
 
-        ztree.add_node(slot_node);
+        ztree.add_node(slot_node,start);
 
         if(from_direction){
             cur_node.parent_id = slot_id;
@@ -357,11 +426,10 @@ void PhraseGraph::dfsvv(int start,int previous,int *visited,Phrase* extract_phra
 
             for(int i=0;i<adjLists.size();i++){
                 if(visited[adjLists.at(i)]==0){
-                    dfsvv(adjLists.at(i),start,visited,extract_phrase,pid,hashIncluded);
+                    dfsvv(adjLists.at(i),start,visited,extract_phrase,pid,hashIncluded,phrase_map);
                 }
             }
     }
-
 
 }
 
@@ -383,17 +451,23 @@ void PhraseGraph::find_head(Phrase *phrase) {
 
 PhraseGraph::PhraseGraph(ZparTree ztree) {
     this->ztree = ztree;
+    this->idInDocument = ztree.idInDocument;
+    this->idInSentence = ztree.idInSentence;
+    this->sen_content = ztree.to_sentence();
+
 }
 
 
-std::string PhraseGraph::to_string() {
+std::string PhraseGraph::to_string(const std::map<PhraseIdentity,Phrase> &phrase_map) {
 
     std::ostringstream out;
     for(int i=0;i<ztree.nodes.size();i++){
 
         int node_phrase_id = node_to_phrase[i];
 
-        auto phrase = phrases[node_phrase_id];
+        auto node_Pident = getPhraseIdent(node_phrase_id);
+
+        Phrase phrase = phrase_map.at(node_Pident);
 
         auto flag=phrase.isArgument;
 
@@ -412,9 +486,15 @@ bool PosComp(int nodeid1,int nodeid2,ZparTree ztree){
 
     return node1.sentense_position<node2.sentense_position;
 }
-void PhraseGraph::set_content() {
-    for(auto itor = phrases.begin();itor!=phrases.end();itor++){
-        auto &phrase = itor->second;
+
+void PhraseGraph::set_content(std::map<PhraseIdentity,Phrase> &phrase_map) {
+
+
+    for(auto itor = pid_to_ident.begin();itor!=pid_to_ident.end();itor++){
+
+        auto Pident =itor->second;
+
+        auto &phrase = phrase_map.at(Pident);
 
         auto comvec = phrase.components;
 
@@ -426,3 +506,109 @@ void PhraseGraph::set_content() {
         }
     }
 }
+
+
+void PhraseGraph::addNEtoPhrase(NEPMAP neps,std::map<PhraseIdentity,Phrase> &phrase_map) {
+
+    for(auto it = pid_to_ident.begin();it!=pid_to_ident.end();it++){
+
+        auto Pident = it->second;
+
+        auto &phrase = phrase_map.at(Pident);
+
+
+        if(phrase.isArgument== false){
+            continue;
+        } else{
+            int  phead = phrase.head;
+            std::string pheadstring = ztree.get_Node(phead).lexeme;
+
+            int maxlenlcs = 0;
+            NEPMAP::iterator maxlenitor;
+            for(auto it2= neps.begin();it2!=neps.end();it2++){
+                int neHead = it2->first;
+                std::string neHeadstring = it2->second.headstring;
+
+                std::wstring wphead = CommonTool::s2ws(pheadstring);
+
+                std::wstring wneHead = CommonTool::s2ws(neHeadstring);
+
+                if(std::fabs(phead-neHead)<=3&&wphead.back()==wneHead.back()){
+                    phrase.entityType = it2->second.entityType;
+                    phrase.isNE = true;
+                    neps.erase(it2);
+                    break;
+                }else{
+                    std::string pContent = phrase.content;
+                    std::string neContent = it2->second.phrase;
+
+                    int commonlen = CommonTool::lcs(CommonTool::s2ws(pContent),CommonTool::s2ws(neContent));
+
+                    if(commonlen>maxlenlcs){
+                        maxlenlcs = commonlen;
+                        maxlenitor = it2;
+                    }
+                }
+            }
+            if(maxlenlcs>0){
+                phrase.entityType = maxlenitor->second.entityType;
+                phrase.isNE = true;
+                neps.erase(maxlenitor);
+            }
+        }
+    }
+}
+
+void Graphs::addCorefertoPhrase(std::map<SentenceIdentity, SentenceGraph> sentence_map,
+                                     std::map<PhraseIdentity, Phrase> &phrase_map, std::vector<Corefer> corefers) {
+    for(int i=0;i<corefers.size();i++){
+        auto corefer = corefers[i];
+        SentenceIdentity  sIden(corefer.Documentid,corefer.sentenceid);
+        SentenceGraph  sen = sentence_map.at(sIden);
+        int phrases_num = sen.phrases_num;
+
+        int maxlenlcs=0; PhraseIdentity corefer_pIden;
+
+        for(auto  pid=0;pid<phrases_num;pid++){
+
+            PhraseIdentity pIden(corefer.Documentid,corefer.sentenceid,pid);
+
+            auto sen_phrase = phrase_map.at(pIden);
+
+            if(sen_phrase.isArgument== false){
+                continue;
+            }
+            else{
+                int  phead = sen_phrase.head;
+
+                int coreHead = corefer.headIndex;
+
+                if(std::fabs(phead-coreHead)<=3){
+                    std::string pContent = sen_phrase.content;
+                    std::string crContent = corefer.text;
+
+                    int commonlen = CommonTool::lcs(CommonTool::s2ws(pContent),CommonTool::s2ws(crContent));
+
+                    if(commonlen>maxlenlcs){
+                        maxlenlcs = commonlen;
+                        corefer_pIden = pIden;
+                    }
+                }
+            }
+        }
+        PhraseIdentity  referedIden;
+
+        if(maxlenlcs>0){
+            if(corefer.isRepresentative){
+                referedIden = corefer_pIden;
+                auto &corefer_phrase = phrase_map.at(referedIden);
+                corefer_phrase.isRepresent = true;
+            }else{
+                auto &corefer_phrase = phrase_map.at(corefer_pIden);
+                corefer_phrase.coreferPhrase = referedIden;
+            }
+        }
+    }
+
+}
+

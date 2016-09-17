@@ -17,7 +17,7 @@ class ZparNode{
         ZparNode()= default;
 
 
-        ZparNode(std::string lexeme,std::string pos,int parent_id,std::string dependency,
+        ZparNode(std::string lexeme,std::string pos,int parent_id,std::string dependency,int idInDocument,int idInSentence,
                  bool isVirtual=false,bool isSlot= false,int link=-2,int level=-2);
 
         ZparNode(const ZparNode &node);
@@ -45,7 +45,11 @@ class ZparNode{
 
         bool isSlot;
         int link;
-        std::vector<int> children;
+
+        //重现句子时候需要
+        bool operator <(const ZparNode&other) const{
+            return this->sentense_position<other.sentense_position;
+        }
 
 
 };
@@ -53,9 +57,14 @@ class ZparNode{
 
 class ZparTree {
 public:
+    int idInDocument;
+
+    int idInSentence;
+
     std::vector<ZparNode> nodes;
     std::map<int,std::vector<int>> children_array;
     int root_id;
+    int min_level = 100;
 
     template <class Archive>
     void serialize( Archive & ar )
@@ -67,6 +76,9 @@ public:
 
     void add_node(ZparNode node);
     void add_node(ZparNode node,int sentence_position);
+    void add_node(ZparNode node3,bool has_id);
+    void add_slot(ZparNode node3,bool has_id);
+
     void set_children_array();
     void set_level(int id,int level);
     ZparNode& get_Node(int id);
@@ -75,7 +87,9 @@ public:
 
     void preprocessing(std::set<std::string>verb_dict);
 
+    std::vector<int> getPathFromRoot(int id);
 
+    int  getLca(int id1,int id2);
 };
 
 

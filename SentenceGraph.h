@@ -2,30 +2,51 @@
 // Created by 王鹏飞 on 16/7/31.
 //
 
+
 #ifndef PHRASEGRAPH_SENTENCEGRAPH_H
 #define PHRASEGRAPH_SENTENCEGRAPH_H
 
+#include <string>
+#include <map>
 
-class SentenceGraph {
-    int idInDocument;
-    int sentenceid;
-    std::string senContent;
+class PhraseGraph;
 
-    std::vector<int>Phrases;
-};
 
-struct SentenceIdentify{
+struct SentenceIdentity{
     int  idInDocument;
     int  sentenceId;
-    SentenceIdentify(int Docid,int Senid){
-        idInDocument = Docid;
-        sentenceId = Senid;
-    }
+
+    SentenceIdentity(int Docid,int Senid);
+
+    bool operator<(const SentenceIdentity& other) const ;
+
 };
+
+
+
+class SentenceGraph {
+public:
+    int idInDocument;
+    int sentenceid;
+
+    std::string senContent;
+
+    int phrases_num;
+
+    SentenceGraph(const PhraseGraph &phraseGraph);
+
+    SentenceIdentity getSenIdent();
+};
+
+
 
 class Sentences{
 public:
-    std::map<SentenceIdentify,SentenceGraph> sentence_map;
+    std::map<SentenceIdentity,SentenceGraph> sentence_map;
+
+    void add_sentence(SentenceGraph senGraph);
+
+
 };
 
 
