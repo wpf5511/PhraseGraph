@@ -27,7 +27,9 @@ class ZparNode{
          {
             ar(id,level,sentense_position,lexeme,pos,parent_id,dependency,isVirtual,isSlot,link);
          }
+        bool isVirtual;
 
+        bool isSlot;
 
         int idInDocument;
         int idInSentence;
@@ -36,15 +38,14 @@ class ZparNode{
         int id;  //word position in the sentence
         int level;
         int sentense_position;
+
+        int parent_id;
+
+        int link;
+
         std::string lexeme;  //word
         std::string pos;   //pos tag
-        int parent_id;
         std::string dependency;  //dependency relation
-
-        bool isVirtual;
-
-        bool isSlot;
-        int link;
 
         //重现句子时候需要
         bool operator <(const ZparNode&other) const{

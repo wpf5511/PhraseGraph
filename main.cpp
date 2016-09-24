@@ -1,14 +1,14 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
 #include "ZparTree.h"
 #include "PhraseGraph.h"
 #include "PhraseTransform.h"
 #include <cereal/archives/xml.hpp>
 #include <dirent.h>
-#include <Eigen/Dense>
+#include <time.h>
 using namespace std;
-using namespace Eigen;
 
 
 
@@ -84,66 +84,51 @@ void extractNEP(std::vector<Token> tokens, std::map<SentenceIdentity, NEPMAP> &s
 }
 
 void BuildGraph(vector<ZparTree>&zpars,Graphs& graphs,const set<std::string>&verb_dict, const std::vector<Token>& nerTokens,const std::vector<Corefer>& corefers,Sentences& sens){
+ 
+    clock_t build_start=clock();
+    cout<<"build start"<<endl;
+   // std::map<SentenceIdentity, NEPMAP> senNEP;  //所有的句子nep
 
-    std::map<SentenceIdentity, NEPMAP> senNEP;  //所有的句子nep
-
-    extractNEP(nerTokens,senNEP);   //可在所有句子，可在一个文档执行
+   // extractNEP(nerTokens,senNEP);   //可在所有句子，可在一个文档执行
 
     for(int i=0;i<zpars.size();i++){
-
+         
+         if(i%5000==0)
+		 cout<<i<<endl;
          zpars[i].preprocessing(verb_dict);
 
-        PhraseGraph graph(zpars[i]);
+         PhraseGraph *graph=new PhraseGraph(zpars[i]);
 
-        graph.extract_Phrases(graphs.phrase_map);
+         graph->extract_Phrases(graphs.phrase_map);
 
 
-        auto SIdent = graph.getSenIdent();
+      // auto SIdent = graph.getSenIdent();
 
-        auto CurNEP = senNEP[SIdent];   // 单个句子的NEP
+      //  auto CurNEP = senNEP[SIdent];   // 单个句子的NEP
 
-        graph.addNEtoPhrase(CurNEP,graphs.phrase_map);
+      //  graph.addNEtoPhrase(CurNEP,graphs.phrase_map);
 
-        SentenceGraph sentenceGraph(graph);
+      // SentenceGraph sentenceGraph(graph);
 
-        sens.add_sentence(sentenceGraph);
+     //   sens.add_sentence(sentenceGraph);
 
         graphs.phrasegraphs.push_back(graph);
 
     }
 
-    graphs.addCorefertoPhrase(sens.sentence_map,graphs.phrase_map,corefers);
-
+    // graphs.addCorefertoPhrase(sens.sentence_map,graphs.phrase_map,corefers);
+    clock_t build_end = clock();
+    cout<<"build time:"<<(build_end-build_start)/1000000<<endl;
 
 }
 
-void  SaveGraph(std::string path,Graphs graphs){
 
-    std::ofstream os(path,ios::binary);
 
-    cereal::BinaryOutputArchive archive( os );
-
-    archive(graphs);
-
-    os.close();
-}
-
-void  LoadGraph(std::string path,Graphs& graphs){
-
-    ifstream ifs(path, std::ios::binary);
-
-    cereal::BinaryInputArchive iarchive(ifs);
-
-    iarchive(graphs);
-
-    ifs.close();
-}
-
-ZparTree getPhraseTree(Phrase  phrase,ZparTree sentenceTree){
+ZparTree getPhraseTree(Phrase*  phrase,ZparTree sentenceTree){
 
     ZparTree resTree;
 
-    vector<int> components = phrase.components;
+    vector<int> components = phrase->components;
 
     for(int i=0;i<components.size();i++){
 
@@ -153,7 +138,7 @@ ZparTree getPhraseTree(Phrase  phrase,ZparTree sentenceTree){
 
     }
 
-    vector<int> slots = phrase.slots;
+    vector<int> slots = phrase->slots;
 
     for(int j=0;j<slots.size();j++){
 
@@ -201,7 +186,7 @@ void savePatternIdx(std::map<int,std::map<int,std::map<int,int>>> vp_to_nps,std:
 
 int main() {
 
-    const char* input_zpared="/home/wpf/Downloads/input-zpared";
+    const char* input_zpared="/home/wpf/input-zpared";
     const char* input_stanford = "/home/wpf/Downloads/input-stanford";
 
    DIR           *d;
@@ -231,17 +216,18 @@ int main() {
            filename = filename+input_zpared+"/"+dir->d_name;
 
            std::string ss = dir->d_name;
-           auto i=ss.find('-');
 
-           xmlfile = xmlfile+input_stanford+"/"+ss.substr(0,i).c_str()+".xml";
+
+           xmlfile = xmlfile+input_stanford+"/"+ss+".xml";
 
            ReadFromZpar(filename,DocId,zpars);
 
-           CommonTool::getInfofromStanford(xmlfile,nerTokens,corefers,DocId);
+          // CommonTool::getInfofromStanford(xmlfile,nerTokens,corefers,DocId);
 
            DocId++;
 
        }
+       cout<<zpars.size()<<endl;
 
        BuildGraph(zpars,graphs,verb_dict,nerTokens,corefers,sentences);   // 可以提出去
 
@@ -252,18 +238,21 @@ int main() {
        std::map<int,std::map<int,std::map<int,int>>> vp_to_nps;
 
        //抽出所有的np先
-       for(auto iter = graphs.phrasegraphs.begin();iter!=graphs.phrasegraphs.end();iter++){
+       int test_num=0;clock_t start, finish;
+       start = clock();
+       for(auto iter = graphs.phrasegraphs.begin();iter!=graphs.phrasegraphs.end();iter++,test_num++){
+
            auto pg = *iter;
 
-           vector<Phrase>npphrases; //一个句子中的npphrase
+           vector<Phrase*>npphrases; //一个句子中的npphrase
 
-           ZparTree sentenceTree = pg.ztree;
+           ZparTree sentenceTree = pg->ztree;
 
-           for(auto phiter =pg.pid_to_ident.begin();phiter!=pg.pid_to_ident.end();phiter++){
+           for(auto phiter =pg->pid_to_ident.begin();phiter!=pg->pid_to_ident.end();phiter++){
                auto phident = phiter->second;
                auto phrase = graphs.phrase_map.at(phident);
 
-               if(phrase.isArgument){
+               if(phrase->isArgument){
                    npphrases.push_back(phrase);
                }
            }
@@ -271,20 +260,20 @@ int main() {
             sort(npphrases.begin(),npphrases.end());
 
            for(int i=0;i<npphrases.size()-1;i++){
-               for(int j=1;j<npphrases.size();j++){
-                   Phrase np1 = npphrases[i];
-                   Phrase np2 = npphrases[j];
+               for(int j=i+1;j<npphrases.size();j++){
+                   Phrase* np1 = npphrases[i];
+                   Phrase* np2 = npphrases[j];
 
-                   int head1 = np1.head;
-                   int head2 = np2.head;
+                   int head1 = np1->head;
+                   int head2 = np2->head;
 
                    //找到最小公共祖先
                    int lcaId = sentenceTree.getLca(head1,head2);
 
                    //获得lca所属的Phrase,使用PhraseGraph中的node_to_phrase
-                   int vpId=pg.node_to_phrase.at(lcaId);
-                   PhraseIdentity vpIdent = pg.pid_to_ident.at(vpId);
-                   Phrase vp = graphs.phrase_map.at(vpIdent);
+                   int vpId=pg->node_to_phrase.at(lcaId);
+                   PhraseIdentity vpIdent = pg->pid_to_ident.at(vpId);
+                   Phrase* vp = graphs.phrase_map.at(vpIdent);
 
                    //Phrase transformation
                    ZparTree np1Tree=getPhraseTree(np1,sentenceTree);
@@ -338,6 +327,12 @@ int main() {
 
 
                }
+           }
+           if(test_num%20==0){
+               finish = clock();
+               cout<<"hello  test_num::"<<test_num<<endl;
+               cout<<"time:"<<(finish-start)/1000000<<endl;
+               start = clock();
            }
        }
        cout<<startnp<<endl;

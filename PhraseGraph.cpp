@@ -46,7 +46,7 @@ std::map<std::string,bool> PhraseGraph::hashPOSOfNOModifier{
         {"DEG", true} //的
 
 };
-void PhraseGraph::extract_Phrases(std::map<PhraseIdentity,Phrase> &phrase_map) {
+void PhraseGraph::extract_Phrases(std::map<PhraseIdentity,Phrase*> &phrase_map) {
 
 
     int rootid = ztree.root_id;
@@ -70,7 +70,7 @@ void PhraseGraph::extract_Phrases(std::map<PhraseIdentity,Phrase> &phrase_map) {
 
         auto Pident = getPhraseIdent(new_phrase->id);  // latter structure
 
-        phrase_map.insert({Pident,*new_phrase});        // latter structure
+        phrase_map.insert({Pident,new_phrase});        // latter structure
 
         pid_to_ident.insert({new_phrase->id,Pident});   //latter structure
 
@@ -84,7 +84,7 @@ void PhraseGraph::extract_Phrases(std::map<PhraseIdentity,Phrase> &phrase_map) {
 
         auto Pident = getPhraseIdent(new_phrase->id);  // latter structure
 
-        phrase_map.insert({Pident,*new_phrase});        // latter structure
+        phrase_map.insert({Pident,new_phrase});        // latter structure
 
         pid_to_ident.insert({new_phrase->id,Pident});   //latter structure
 
@@ -111,7 +111,7 @@ void PhraseGraph::extract_Phrases(std::map<PhraseIdentity,Phrase> &phrase_map) {
 
             auto Pident = getPhraseIdent(vv_phrase->id);  // latter structure
 
-            phrase_map.insert({Pident,*vv_phrase});        // latter structure
+            phrase_map.insert({Pident,vv_phrase});        // latter structure
 
             pid_to_ident.insert({vv_phrase->id,Pident});   //latter structure
 
@@ -133,7 +133,7 @@ void PhraseGraph::extract_Phrases(std::map<PhraseIdentity,Phrase> &phrase_map) {
 
         auto Pident =pid_to_ident.at(j);
 
-        Phrase *phrase_head = &phrase_map.at(Pident);
+        Phrase *phrase_head = phrase_map.at(Pident);
 
         find_head(phrase_head);
     }
@@ -205,13 +205,13 @@ bool PhraseGraph::CanBeHead(int nodeid){
     }
 };
 
-void PhraseGraph::dfscm(int start,int previous,Phrase* extract_phrase,int* global_pid,std::map<int,bool>&hasIncluded,std::vector<int>&vvec,std::map<PhraseIdentity,Phrase> &phrase_map){
+void PhraseGraph::dfscm(int start,int previous,Phrase* extract_phrase,int* global_pid,std::map<int,bool>&hasIncluded,std::vector<int>&vvec,std::map<PhraseIdentity,Phrase*> &phrase_map){
 
     auto extract_phrase_ident = getPhraseIdent(extract_phrase->id);
 
     // extract_phrase = &phrases.at(extract_phrase->id);  former structure
 
-    extract_phrase = &phrase_map.at(extract_phrase_ident);  // latter structure
+    extract_phrase = phrase_map.at(extract_phrase_ident);  // latter structure
 
 
     auto &cur_node = ztree.get_Node(start);
@@ -262,7 +262,7 @@ void PhraseGraph::dfscm(int start,int previous,Phrase* extract_phrase,int* globa
 
         auto Pident = getPhraseIdent(arg_phrase->id);  // latter structure
 
-        phrase_map.insert({Pident,*arg_phrase});        // latter structure
+        phrase_map.insert({Pident,arg_phrase});        // latter structure
 
         pid_to_ident.insert({arg_phrase->id,Pident});   //latter structure
 
@@ -304,13 +304,13 @@ void PhraseGraph::dfscm(int start,int previous,Phrase* extract_phrase,int* globa
 }
 
 //从arg_nn 开始遍历,找np phrase
-void PhraseGraph::dfsnn(int start,int previous,Phrase* arg_phrase,int* global_pid,std::map<int,bool>&hasIncluded,std::vector<int>&vvec,std::map<PhraseIdentity,Phrase> &phrase_map){
+void PhraseGraph::dfsnn(int start,int previous,Phrase* arg_phrase,int* global_pid,std::map<int,bool>&hasIncluded,std::vector<int>&vvec,std::map<PhraseIdentity,Phrase*> &phrase_map){
 
     auto arg_phrase_ident = getPhraseIdent(arg_phrase->id);
 
     //arg_phrase = &phrases.at(arg_phrase->id);
 
-    arg_phrase = &phrase_map.at(arg_phrase_ident);  // latter structure
+    arg_phrase = phrase_map.at(arg_phrase_ident);  // latter structure
 
     std::vector<int> children_id = ztree.get_children(start);
 
@@ -340,12 +340,12 @@ void PhraseGraph::dfsnn(int start,int previous,Phrase* arg_phrase,int* global_pi
 
         auto Pident = getPhraseIdent(arg_phrase->id);  // latter structure
 
-        phrase_map.insert({Pident,*arg_phrase});        // latter structure
+        phrase_map.insert({Pident,arg_phrase});        // latter structure
 
         pid_to_ident.insert({arg_phrase->id,Pident});   //latter structure
 
 
-        hasIncluded.insert({arg_phrase->id,true});
+        hasIncluded.insert({start,true});
 
     }
     //不是head也不是modifier,可能是动词或者副词的情况
@@ -368,7 +368,7 @@ void PhraseGraph::dfsnn(int start,int previous,Phrase* arg_phrase,int* global_pi
 }
 
 //从nn下的vv开始遍历,可上可下,到np停止(可能到np的modifier而不是到np的head)
-void PhraseGraph::dfsvv(int start,int previous,int *visited,Phrase* extract_phrase,int* pid,std::map<int,bool>hashIncluded, std::map<PhraseIdentity,Phrase> &phrase_map){
+void PhraseGraph::dfsvv(int start,int previous,int *visited,Phrase* extract_phrase,int* pid,std::map<int,bool>hashIncluded, std::map<PhraseIdentity,Phrase*> &phrase_map){
 
     auto &cur_node = ztree.get_Node(start);
 
@@ -382,7 +382,7 @@ void PhraseGraph::dfsvv(int start,int previous,int *visited,Phrase* extract_phra
 
     visited[start]=1;
 
-    if(hashIncluded[start]){
+    if(hashIncluded.find(start)!=hashIncluded.end()){
 
         std::string slot_dep; int slot_parent;
         bool from_direction; //true means up,false means down
@@ -449,7 +449,7 @@ void PhraseGraph::find_head(Phrase *phrase) {
     phrase->head = head_index;
 }
 
-PhraseGraph::PhraseGraph(ZparTree ztree) {
+PhraseGraph::PhraseGraph(ZparTree& zparTree):ztree(zparTree) {
     this->ztree = ztree;
     this->idInDocument = ztree.idInDocument;
     this->idInSentence = ztree.idInSentence;
@@ -487,22 +487,22 @@ bool PosComp(int nodeid1,int nodeid2,ZparTree ztree){
     return node1.sentense_position<node2.sentense_position;
 }
 
-void PhraseGraph::set_content(std::map<PhraseIdentity,Phrase> &phrase_map) {
+void PhraseGraph::set_content(std::map<PhraseIdentity,Phrase*> &phrase_map) {
 
 
     for(auto itor = pid_to_ident.begin();itor!=pid_to_ident.end();itor++){
 
         auto Pident =itor->second;
 
-        auto &phrase = phrase_map.at(Pident);
+        Phrase* phrase = phrase_map.at(Pident);
 
-        auto comvec = phrase.components;
+        auto comvec = phrase->components;
 
         std::sort(comvec.begin(),comvec.end(),std::bind(PosComp,std::placeholders::_1,std::placeholders::_2,ztree));
 
         for(int nodeid:comvec){
             auto word = ztree.get_Node(nodeid).lexeme;
-            phrase.content = phrase.content+word+"_";
+            phrase->content = phrase->content+word+"_";
         }
     }
 }
