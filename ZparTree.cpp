@@ -48,6 +48,21 @@ ZparNode::ZparNode(const ZparNode &node) {
 
 
 //ZparTree method
+ZparTree::ZparTree(const ZparTree& cztree) {
+
+    this->idInDocument=cztree.idInDocument;
+
+    this->idInSentence=cztree.idInSentence;
+
+    this->nodes = cztree.nodes;
+
+    this->children_array=cztree.children_array;
+    this->root_id=cztree.root_id;
+    this->min_level=cztree.min_level;
+
+}
+
+
 
 void ZparTree::add_node(ZparNode node2) {
 
@@ -134,7 +149,7 @@ std::vector<int> ZparTree::get_children(int id) {
 ZparNode& ZparTree::get_Node(int nodeid) {
 
     //按照node在句子中的顺序排序
-    std::sort(nodes.begin(),nodes.end());
+    //std::sort(nodes.begin(),nodes.end());
 
     for(int i=0;i<nodes.size();i++){
         if(nodes[i].id==nodeid){
@@ -156,7 +171,7 @@ std::string ZparTree::to_sentence() {
 void ZparTree::preprocessing(std::set<std::string> verb_dict) {
 
     for(int i=0;i<this->nodes.size();i++){
-        auto & znode= get_Node(i);
+        auto & znode= get_Node(nodes[i].id);   // before process id is i
         if(znode.pos=="NN"){
 
             std::string word = znode.lexeme;
@@ -164,20 +179,22 @@ void ZparTree::preprocessing(std::set<std::string> verb_dict) {
                 znode.pos = "VV";
             }
         }
-        if(znode.pos=="DEC"){
+        if(znode.pos=="DEC") {
             int parent_id = znode.parent_id;
-            ZparNode dec_parent = get_Node(parent_id);
-            std::string dec_parent_pos = dec_parent.pos;
-            if(dec_parent_pos=="VA"||dec_parent_pos=="VC"||dec_parent_pos=="VE"||dec_parent_pos=="VV"){
+            if(parent_id!=-1){
+                    ZparNode dec_parent = get_Node(parent_id);
+                    std::string dec_parent_pos = dec_parent.pos;
+                    if (dec_parent_pos == "VA" || dec_parent_pos == "VC" || dec_parent_pos == "VE" || dec_parent_pos == "VV") {
 
-                znode.parent_id =nodes.size();
+                        znode.parent_id = nodes.size();
 
-                int DocId = znode.idInDocument;int SentenceId = znode.idInSentence;
-                add_node(ZparNode("","NN",parent_id,znode.dependency,DocId,SentenceId),i+1);
+                        int DocId = znode.idInDocument;
+                        int SentenceId = znode.idInSentence;
+                        add_node(ZparNode("Unknown", "NN", parent_id, znode.dependency, DocId, SentenceId),
+                                 znode.sentense_position + 1);
 
-                auto &zznode = get_Node(i);
-
-                zznode.dependency="NMOD";
+                        znode.dependency = "NMOD";
+                    }
             }
         }
     }

@@ -74,6 +74,8 @@ public:
 
 
 
+    ZparTree()= default;
+    ZparTree(const ZparTree& cztree);
     void add_node(ZparNode node);
     void add_node(ZparNode node,int sentence_position);
     void add_node(ZparNode node3,bool has_id);

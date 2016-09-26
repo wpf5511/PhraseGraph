@@ -7,6 +7,7 @@
 #include <cereal/archives/xml.hpp>
 #include <dirent.h>
 #include <Eigen/Dense>
+#include <time.h>
 using namespace std;
 using namespace Eigen;
 
@@ -231,13 +232,13 @@ int main() {
            filename = filename+input_zpared+"/"+dir->d_name;
 
            std::string ss = dir->d_name;
-           auto i=ss.find('-');
 
-           xmlfile = xmlfile+input_stanford+"/"+ss.substr(0,i).c_str()+".xml";
+
+           xmlfile = xmlfile+input_stanford+"/"+ss+".xml";
 
            ReadFromZpar(filename,DocId,zpars);
 
-           CommonTool::getInfofromStanford(xmlfile,nerTokens,corefers,DocId);
+          // CommonTool::getInfofromStanford(xmlfile,nerTokens,corefers,DocId);
 
            DocId++;
 
@@ -252,7 +253,10 @@ int main() {
        std::map<int,std::map<int,std::map<int,int>>> vp_to_nps;
 
        //抽出所有的np先
-       for(auto iter = graphs.phrasegraphs.begin();iter!=graphs.phrasegraphs.end();iter++){
+       int test_num=0;clock_t start, finish;
+       start = clock();
+       for(auto iter = graphs.phrasegraphs.begin();iter!=graphs.phrasegraphs.end();iter++,test_num++){
+
            auto pg = *iter;
 
            vector<Phrase>npphrases; //一个句子中的npphrase
@@ -271,7 +275,7 @@ int main() {
             sort(npphrases.begin(),npphrases.end());
 
            for(int i=0;i<npphrases.size()-1;i++){
-               for(int j=1;j<npphrases.size();j++){
+               for(int j=i+1;j<npphrases.size();j++){
                    Phrase np1 = npphrases[i];
                    Phrase np2 = npphrases[j];
 
@@ -338,6 +342,12 @@ int main() {
 
 
                }
+           }
+           if(test_num%20==0){
+               finish = clock();
+               cout<<"hello  test_num::"<<test_num<<endl;
+               cout<<"time:"<<(finish-start)/1000000<<endl;
+               start = clock();
            }
        }
        cout<<startnp<<endl;

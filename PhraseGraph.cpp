@@ -345,7 +345,7 @@ void PhraseGraph::dfsnn(int start,int previous,Phrase* arg_phrase,int* global_pi
         pid_to_ident.insert({arg_phrase->id,Pident});   //latter structure
 
 
-        hasIncluded.insert({arg_phrase->id,true});
+        hasIncluded.insert({start,true});
 
     }
     //不是head也不是modifier,可能是动词或者副词的情况
@@ -382,7 +382,7 @@ void PhraseGraph::dfsvv(int start,int previous,int *visited,Phrase* extract_phra
 
     visited[start]=1;
 
-    if(hashIncluded[start]){
+    if(hashIncluded.find(start)!=hashIncluded.end()){
 
         std::string slot_dep; int slot_parent;
         bool from_direction; //true means up,false means down
@@ -449,8 +449,8 @@ void PhraseGraph::find_head(Phrase *phrase) {
     phrase->head = head_index;
 }
 
-PhraseGraph::PhraseGraph(ZparTree ztree) {
-    this->ztree = ztree;
+PhraseGraph::PhraseGraph(ZparTree& ztree):ztree(ztree) {
+
     this->idInDocument = ztree.idInDocument;
     this->idInSentence = ztree.idInSentence;
     this->sen_content = ztree.to_sentence();
@@ -479,10 +479,10 @@ std::string PhraseGraph::to_string(const std::map<PhraseIdentity,Phrase> &phrase
     return out.str();
 }
 
-bool PosComp(int nodeid1,int nodeid2,ZparTree ztree){
+bool PosComp(int nodeid1,int nodeid2,ZparTree& zparTree){
 
-    auto node1=ztree.get_Node(nodeid1);
-    auto node2=ztree.get_Node(nodeid2);
+    const ZparNode& node1=zparTree.get_Node(nodeid1);
+    const ZparNode& node2=zparTree.get_Node(nodeid2);
 
     return node1.sentense_position<node2.sentense_position;
 }

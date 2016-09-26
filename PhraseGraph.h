@@ -110,7 +110,7 @@ public:
 
 class PhraseGraph {
 public:
-    ZparTree ztree;
+    ZparTree &ztree;
     int idInDocument;
     int idInSentence;
    // std::map<int,Phrase> phrases;//value type should change to id.  former structure
@@ -135,7 +135,7 @@ public:
 
 
 public:
-    PhraseGraph(ZparTree ztree);
+    PhraseGraph(ZparTree& ztree);
     PhraseGraph()= default;
     void extract_Phrases(std::map<PhraseIdentity,Phrase> &phrase_map);
     bool is_end(int nodeid);
