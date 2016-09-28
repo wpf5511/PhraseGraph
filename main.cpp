@@ -137,11 +137,16 @@ std::vector<string> DIRT_From_Zpar(ZparTree ztree){
             vector<int>path2 = Tree.getPathFromRoot(head2);
 
             auto lca_info  = Tree.getLca(path1,path2);
+            vector<int>hx;
+            vector<int>hy;
+            if(std::get<0>(lca_info)+1<=path1.size()){
+                hx.assign(path1.begin()+std::get<0>(lca_info)+1,path1.end());
+                std::reverse(hx.begin(),hx.end());
+            }
 
-            vector<int>hx(path1.begin()+std::get<0>(lca_info),path1.end());
-            std::reverse(hx.begin(),hx.end());
-
-            vector<int>hy(path2.begin()+std::get<0>(lca_info),path2.end());
+            if(std::get<0>(lca_info)+1<=path2.size()){
+                hy.assign(path2.begin()+std::get<0>(lca_info)+1,path2.end());
+            }
 
             Path p(head1,hx,std::get<1>(lca_info),head2,hy);
 

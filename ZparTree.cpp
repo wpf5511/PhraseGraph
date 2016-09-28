@@ -234,6 +234,7 @@ std::tuple<int,int>  ZparTree::getLca(std::vector<int> path1,std::vector<int> pa
             break;
     }
 
+    i--;
     if(path1[i]==path2[i]){
         int lca_idx = i;
         return  std::make_tuple(lca_idx,path1[lca_idx]);
