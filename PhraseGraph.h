@@ -121,11 +121,11 @@ public:
 
     std::map<int,int> node_to_phrase;
 
-    static std::map<std::string,bool> hashPOSOfNoun;
-    static std::map<std::string,bool> hashPOSOfVerb;
+    static std::map<int,bool> hashPOSOfNoun;
+    static std::map<int,bool> hashPOSOfVerb;
 
-    static std::map<std::string,bool> hashPOSOfNPHead;
-    static std::map<std::string,bool> hashPOSOfNOModifier;
+    static std::map<int,bool> hashPOSOfNPHead;
+    static std::map<int,bool> hashPOSOfNOModifier;
 
     template <class Archive>
     void serialize( Archive & ar )

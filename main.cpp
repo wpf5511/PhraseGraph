@@ -5,12 +5,113 @@
 #include "ZparTree.h"
 #include "PhraseGraph.h"
 #include "PhraseTransform.h"
+#include "init.h"
 #include <cereal/archives/xml.hpp>
 #include <dirent.h>
 #include <time.h>
 using namespace std;
 
 
+
+const char* DIRUP = ">";
+
+const char* DIRDOWN = "<";
+struct Path{
+    int X;
+    vector<int>hx;
+    int lcaId;
+    int Y;
+    vector<int>hy;
+    Path(int head1,vector<int>path1,int lca,int head2,vector<int>path2){
+        this->X = head1;
+        this->hx = path1;
+        this->lcaId = lca;
+        this->Y = head2;
+        this->hy = path2;
+    }
+
+};
+
+std::string edge_to_string(int id,ZparTree ztree,bool isHead=false){
+    auto node = ztree.get_Node(id);
+
+    int w_id = node.lexeme;
+    int p_id = node.pos;
+    int d_id = node.dependency;
+
+    std::string dep = isHead?"ROOT":dep2id.right.at(d_id);
+    ostringstream os;
+
+    os<<word2id.right.at(w_id)<<"/"<<pos2id.right.at(p_id)<<"/"
+    <<dep;
+    return  os.str();
+}
+
+std::string argument_to_string(int id,std::string edge_name,ZparTree ztree,bool isHead){
+
+    auto node = ztree.get_Node(id);
+
+    int w_id = node.lexeme;
+    int p_id = node.pos;
+    int d_id = node.dependency;
+
+    std::string dep = isHead?"ROOT":dep2id.right.at(d_id);
+    ostringstream os;
+
+    os<<edge_name<<"/"<<pos2id.right.at(p_id)<<"/"<<dep2id.right.at(d_id);
+
+    return os.str();
+
+    }
+
+
+std::string clean_path(Path p1,ZparTree ztree){
+    const char* dir_x;
+    const char* dir_y;
+    std::string lch_str;
+    bool XisHead= false;
+    bool YisHead= false;
+    if(p1.lcaId==p1.X){
+         dir_x= "";
+         dir_y = DIRDOWN;
+        XisHead = true;
+    } else if(p1.lcaId==p1.Y){
+        dir_x = DIRUP;
+        dir_y = "";
+        YisHead = true;
+    } else{
+        lch_str = edge_to_string(p1.lcaId,ztree,true);
+        dir_x = DIRUP;
+        dir_y = DIRDOWN;
+    }
+
+    std::string cleaned_path;
+    std::string hx_path;
+    std::string hy_path;
+    for(auto iter = p1.hx.begin();iter!=p1.hx.end();iter++){
+
+        hx_path+=edge_to_string(*iter,ztree)+DIRUP;
+    }
+
+    for(auto it = p1.hy.begin();it!=p1.hy.end();it++){
+        hy_path+=DIRDOWN+edge_to_string(*it,ztree);
+    }
+
+    cleaned_path = argument_to_string(p1.X,"X",ztree,XisHead)+dir_x+hx_path+lch_str+hy_path+dir_y+argument_to_string(p1.Y,"Y",ztree,YisHead);
+
+    return  cleaned_path;
+
+}
+
+
+
+bool is_Entity(int posid){
+    if(pos2id.right.at(posid)=="NN"||pos2id.right.at(posid)=="NR"){
+        return true;
+    } else {
+        return false;
+    }
+}
 
 void ReadDict(std::string path,set<std::string>&verb_dict){
 
@@ -27,6 +128,11 @@ void ReadDict(std::string path,set<std::string>&verb_dict){
 }
 void ReadFromZpar(std::string path,int DocId,vector<ZparTree>&zpars){
 
+    word2id.insert({"Unknown",0});
+    word2id.insert({"*",1});
+
+    pos2id.insert({"*",0});
+    dep2id.insert({"*",0});
 
     ifstream Zparfile(path,ios::in);
 
@@ -52,7 +158,15 @@ void ReadFromZpar(std::string path,int DocId,vector<ZparTree>&zpars){
 
             is>>lexeme>>pos>>parent_id>>dependency;
 
-            zparTree->add_node(ZparNode(lexeme,pos,stoi(parent_id),dependency,DocId,SentenceId));
+            if(word2id.left.find(lexeme)==word2id.left.end()){
+                word2id.insert({lexeme,start_wid++});
+            }
+
+            if(dep2id.left.find(dependency)==dep2id.left.end()){
+                dep2id.insert({dependency,start_did++});
+            }
+
+            zparTree->add_node(ZparNode(word2id.left.at(lexeme),pos2id.left.at(pos),stoi(parent_id),dep2id.left.at(dependency),DocId,SentenceId));
         }
     }
 
@@ -152,11 +266,11 @@ ZparTree getPhraseTree(Phrase*  phrase,ZparTree sentenceTree){
     return resTree;
 }
 
-void savePhraseIdx(map<PhraseTransform,int> np_to_id,std::string filepath){
+void savePhraseIdx(map<std::string,int> np_to_id,std::string filepath){
     ofstream out(filepath,ios::out);
 
     for(auto iter = np_to_id.begin();iter!=np_to_id.end();iter++){
-        out<<iter->first.phrasestring<<"\t"<<iter->second<<endl;
+        out<<iter->first<<"\t"<<iter->second<<endl;
     }
 
     out.close();
@@ -229,120 +343,101 @@ int main() {
        }
        cout<<zpars.size()<<endl;
 
-       BuildGraph(zpars,graphs,verb_dict,nerTokens,corefers,sentences);   // 可以提出去
+       //BuildGraph(zpars,graphs,verb_dict,nerTokens,corefers,sentences);   // 可以提出去
 
-       map<PhraseTransform,int> vp_to_id; int startvp=0;
+       map<std::string,int> term_to_id; int start_term=0;
 
-       map<PhraseTransform,int> np_to_id;  int startnp= 0;
+       map<std::string,int> path_to_id;  int start_path= 0;
 
-       std::map<int,std::map<int,std::map<int,int>>> vp_to_nps;
+       std::map<int,std::map<int,std::map<int,int>>> path_to_terms;
 
-       //抽出所有的np先
        int test_num=0;clock_t start, finish;
        start = clock();
-       for(auto iter = graphs.phrasegraphs.begin();iter!=graphs.phrasegraphs.end();iter++,test_num++){
 
-           auto pg = *iter;
+       for(int i=0;i<zpars.size();i++){
+           auto Tree = zpars[i];
 
-           vector<Phrase*>npphrases; //一个句子中的npphrase
+           auto nodes = Tree.nodes;
 
-           ZparTree sentenceTree = pg->ztree;
+           sort(nodes.begin(),nodes.end());
 
-           for(auto phiter =pg->pid_to_ident.begin();phiter!=pg->pid_to_ident.end();phiter++){
-               auto phident = phiter->second;
-               auto phrase = graphs.phrase_map.at(phident);
+           int ns = nodes.size();
 
-               if(phrase->isArgument){
-                   npphrases.push_back(phrase);
-               }
-           }
-            //sort the phrase
-            sort(npphrases.begin(),npphrases.end());
+           for(int j=0;j<ns-1;j++){
+               if(!is_Entity(nodes[j].pos))
+                   continue;
+               for(int k=j+1;k<ns;k++){
+                   if(!is_Entity(nodes[k].pos))
+                       continue;
+                   int  head1 = nodes[j].id;
+                   int  head2 = nodes[k].id;
 
-           for(int i=0;i<npphrases.size()-1;i++){
-               for(int j=i+1;j<npphrases.size();j++){
-                   Phrase* np1 = npphrases[i];
-                   Phrase* np2 = npphrases[j];
+                   vector<int>path1 = Tree.getPathFromRoot(head1);
+                   vector<int>path2 = Tree.getPathFromRoot(head2);
 
-                   int head1 = np1->head;
-                   int head2 = np2->head;
+                   auto lca_info  = Tree.getLca(path1,path2);
 
-                   //找到最小公共祖先
-                   int lcaId = sentenceTree.getLca(head1,head2);
+                   vector<int>hx(path1.begin()+std::get<0>(lca_info),path1.end());
+                   std::reverse(hx.begin(),hx.end());
 
-                   //获得lca所属的Phrase,使用PhraseGraph中的node_to_phrase
-                   int vpId=pg->node_to_phrase.at(lcaId);
-                   PhraseIdentity vpIdent = pg->pid_to_ident.at(vpId);
-                   Phrase* vp = graphs.phrase_map.at(vpIdent);
+                   vector<int>hy(path2.begin()+std::get<0>(lca_info),path2.end());
 
-                   //Phrase transformation
-                   ZparTree np1Tree=getPhraseTree(np1,sentenceTree);
-                   PhraseTransform np1_trans = PhraseTransform(np1Tree);
+                   Path p(head1,hx,std::get<1>(lca_info),head2,hy);
 
-                   ZparTree np2Tree=getPhraseTree(np2,sentenceTree);
-                   PhraseTransform np2_trans = PhraseTransform(np2Tree);
+                   std::string path_string = clean_path(p,zpars[i]);
 
-                   ZparTree vpTree=getPhraseTree(vp,sentenceTree);
-                   PhraseTransform vp_trans = PhraseTransform(vpTree);
-
-                   //nppair to id
-                   int np1Id;
-                   if(np_to_id.find(np1_trans)==np_to_id.end()){
-                       np_to_id[np1_trans] = startnp;
-                       np1Id = startnp;
-                       startnp++;
-                   }else{
-                           np1Id = np_to_id.at(np1_trans);
+                   int t1id;
+                   if(term_to_id.find(word2id.right.at(head1))==term_to_id.end()){
+                       term_to_id[word2id.right.at(head1)]=start_term;
+                       t1id = start_term;
+                       start_term++;
+                   } else{
+                       t1id = term_to_id.at(word2id.right.at(head1));
                    }
 
-                   int np2Id;
-                   if(np_to_id.find(np2_trans)==np_to_id.end()){
-                       np_to_id[np2_trans] = startnp;
-                       np2Id = startnp;
-                       startnp++;
-                   }else{
-                       np2Id = np_to_id.at(np2_trans);
+                   int t2id;
+                   if(term_to_id.find(word2id.right.at(head2))==term_to_id.end()){
+                       term_to_id[word2id.right.at(head2)]=start_term;
+                       t2id = start_term;
+                       start_term++;
+                   } else{
+                       t2id = term_to_id.at(word2id.right.at(head2));
                    }
 
 
-
-                   //vp to id
-                   int vphraseId;
-                   if(vp_to_id.find(vp_trans)==vp_to_id.end()){
-                       vp_to_id[vp_trans]=startvp;
-                       vphraseId = startvp;
-                       startvp++;
-                   }else{
-                       vphraseId = vp_to_id.at(vp_trans);
+                   int pathId;
+                   if(path_to_id.find(path_string)==path_to_id.end()){
+                       path_to_id[path_string]=start_path;
+                       pathId = start_path;
+                       start_path++;
+                   } else{
+                       pathId = path_to_id.at(path_string);
                    }
 
-
-                   vp_to_nps[vphraseId][np1Id][np2Id]++;
-
-
-
-                   //build matrix  size need to compute first
-                   //MatrixXd m;
-                   //m(npsId,vpId) =
-
+                   path_to_terms[pathId][t1id][t2id]++;
 
                }
            }
-           if(test_num%20==0){
+           if(i%20==0){
                finish = clock();
-               cout<<"hello  test_num::"<<test_num<<endl;
+               cout<<"hello test_num::"<<i<<endl;
                cout<<"time:"<<(finish-start)/1000000<<endl;
-               start = clock();
+               start=clock();
            }
+
        }
-       cout<<startnp<<endl;
-       cout<<startvp<<endl;
 
-       savePhraseIdx(np_to_id,"/home/wpf/np_to_id");
 
-       savePhraseIdx(vp_to_id,"/home/wpf/vp_to_id");
+       //抽出所有的np先
 
-       savePatternIdx(vp_to_nps,"/home/wpf/vp_to_nps");
+
+
+
+       savePhraseIdx(term_to_id,"/home/wpf/term_to_id");
+
+       savePhraseIdx(path_to_id,"/home/wpf/path_to_id");
+
+       savePatternIdx(path_to_terms,"/home/wpf/path_to_terms");
 
        //遍历所有的np对
        closedir(d);

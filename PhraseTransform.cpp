@@ -50,13 +50,13 @@ std::string PhraseTransform::createStringRepresent(int nodeid) {
 
     auto currentNode = phrasetree.get_Node(nodeid);
 
-    std::string word = currentNode.lexeme;
+    int word = currentNode.lexeme;
 
-    std::string pos = currentNode.pos;
+    int pos = currentNode.pos;
 
-    std::string dep = currentNode.dependency;
+    int dep = currentNode.dependency;
 
-    currentNodeString = word+FIELD_SEPARATOR+pos+FIELD_SEPARATOR+dep;
+    currentNodeString = std::to_string(word)+FIELD_SEPARATOR+std::to_string(pos)+FIELD_SEPARATOR+std::to_string(dep);
 
     std::ostringstream os;
 

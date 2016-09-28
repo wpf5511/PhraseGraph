@@ -5,45 +5,47 @@
 #include "PhraseGraph.h"
 #include <cmath>
 #include <algorithm>
+#include <boost/bimap.hpp>
 
+extern boost::bimap<std::string, int> word2id,pos2id,dep2id;
 
-std::map<std::string,bool>  PhraseGraph::hashPOSOfNoun{
-        {"NN", true},
-        {"NR", true},
-        {"NT", true},
-        {"PN", true},
-        {"M",  true}
+std::map<int,bool>  PhraseGraph::hashPOSOfNoun{
+        {pos2id.left.at("NN"), true},
+        {pos2id.left.at("NR"), true},
+        {pos2id.left.at("NT"), true},
+        {pos2id.left.at("PN"), true},
+        {pos2id.left.at("M"),  true}
 };
 
 
-std::map<std::string,bool> PhraseGraph::hashPOSOfVerb{
-        {"VV", true},
-        {"VC", true},
-        {"VA", true},
-        {"VE", true}
+std::map<int,bool> PhraseGraph::hashPOSOfVerb{
+        {pos2id.left.at("VV"), true},
+        {pos2id.left.at("VC"), true},
+        {pos2id.left.at("VA"), true},
+        {pos2id.left.at("VE"), true}
 };
 
-std::map<std::string,bool> PhraseGraph::hashPOSOfNPHead{
-        {"NN", true},
-        {"NR", true},
-        {"NT", true},
-        {"PN", true},
-        {"M",  true}
+std::map<int,bool> PhraseGraph::hashPOSOfNPHead{
+        {pos2id.left.at("NN"), true},
+        {pos2id.left.at("NR"), true},
+        {pos2id.left.at("NT"), true},
+        {pos2id.left.at("PN"), true},
+        {pos2id.left.at("M"),  true}
 
 };
 
 
-std::map<std::string,bool> PhraseGraph::hashPOSOfNOModifier{
-        {"NN", true},
-        {"NR", true},
-        {"NT", true},
-        {"PN", true},
-        {"M",  true},
-        {"CD", true},
-        {"OD", true},
-        {"JJ", true},
-        {"CC", true}, //和
-        {"DEG", true} //的
+std::map<int,bool> PhraseGraph::hashPOSOfNOModifier{
+        {pos2id.left.at("NN"), true},
+        {pos2id.left.at("NR"), true},
+        {pos2id.left.at("NT"), true},
+        {pos2id.left.at("PN"), true},
+        {pos2id.left.at("M"),  true},
+        {pos2id.left.at("CD"), true},
+        {pos2id.left.at("OD"), true},
+        {pos2id.left.at("JJ"), true},
+        {pos2id.left.at("CC"), true}, //和
+        {pos2id.left.at("DEG"), true} //的
 
 };
 void PhraseGraph::extract_Phrases(std::map<PhraseIdentity,Phrase*> &phrase_map) {
@@ -232,11 +234,11 @@ void PhraseGraph::dfscm(int start,int previous,Phrase* extract_phrase,int* globa
 
         arg_phrase->add_component(start);
 
-        std::string slot_dep = cur_node.dependency;
+        int slot_dep = cur_node.dependency;
 
         int DocId = ztree.idInDocument; int SenId = ztree.idInSentence;
 
-        ZparNode slot_node = ZparNode("*","*",previous,slot_dep,DocId,SenId,true,true,start);  //注意根是名词的情况
+        ZparNode slot_node = ZparNode(word2id.left.at("*"),pos2id.left.at("*"),previous,slot_dep,DocId,SenId,true,true,start);  //注意根是名词的情况
 
         int slot_id = ztree.nodes.size();
 
@@ -384,7 +386,7 @@ void PhraseGraph::dfsvv(int start,int previous,int *visited,Phrase* extract_phra
 
     if(hashIncluded.find(start)!=hashIncluded.end()){
 
-        std::string slot_dep; int slot_parent;
+        int slot_dep; int slot_parent;
         bool from_direction; //true means up,false means down
         if(parent_id==previous){
             from_direction = true;
@@ -399,7 +401,7 @@ void PhraseGraph::dfsvv(int start,int previous,int *visited,Phrase* extract_phra
 
         int DocId = ztree.idInDocument; int SenId = ztree.idInSentence;
 
-        ZparNode slot_node = ZparNode("*","*",slot_parent,slot_dep, DocId,SenId,true, true,start);
+        ZparNode slot_node = ZparNode(word2id.left.at("*"),pos2id.left.at("*"),slot_parent,slot_dep, DocId,SenId,true, true,start);
 
         int slot_id = ztree.nodes.size();
 
@@ -502,7 +504,7 @@ void PhraseGraph::set_content(std::map<PhraseIdentity,Phrase*> &phrase_map) {
 
         for(int nodeid:comvec){
             auto word = ztree.get_Node(nodeid).lexeme;
-            phrase->content = phrase->content+word+"_";
+            phrase->content = phrase->content+word2id.right.at(word)+"_";
         }
     }
 }
@@ -521,7 +523,7 @@ void PhraseGraph::addNEtoPhrase(NEPMAP neps,std::map<PhraseIdentity,Phrase> &phr
             continue;
         } else{
             int  phead = phrase.head;
-            std::string pheadstring = ztree.get_Node(phead).lexeme;
+            std::string pheadstring = word2id.right.at(ztree.get_Node(phead).lexeme);
 
             int maxlenlcs = 0;
             NEPMAP::iterator maxlenitor;

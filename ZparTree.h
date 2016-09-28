@@ -9,6 +9,7 @@
 #include <vector>
 #include <set>
 #include <string>
+#include <tuple>
 #include <cereal/types/map.hpp>
 #include <cereal/types/vector.hpp>
 class ZparNode{
@@ -17,7 +18,7 @@ class ZparNode{
         ZparNode()= default;
 
 
-        ZparNode(std::string lexeme,std::string pos,int parent_id,std::string dependency,int idInDocument,int idInSentence,
+        ZparNode(int lexeme,int pos,int parent_id,int dependency,int idInDocument,int idInSentence,
                  bool isVirtual=false,bool isSlot= false,int link=-2,int level=-2);
 
         ZparNode(const ZparNode &node);
@@ -43,9 +44,9 @@ class ZparNode{
 
         int link;
 
-        std::string lexeme;  //word
-        std::string pos;   //pos tag
-        std::string dependency;  //dependency relation
+        int lexeme;  //word
+        int  pos;   //pos tag
+        int dependency;  //dependency relation
 
         //重现句子时候需要
         bool operator <(const ZparNode&other) const{
@@ -90,7 +91,7 @@ public:
 
     std::vector<int> getPathFromRoot(int id);
 
-    int  getLca(int id1,int id2);
+    std::tuple<int,int> getLca(std::vector<int> path1,std::vector<int> path2);
 };
 
 
