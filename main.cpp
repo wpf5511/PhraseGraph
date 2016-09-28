@@ -103,14 +103,62 @@ std::string clean_path(Path p1,ZparTree ztree){
 
 }
 
-
-
 bool is_Entity(int posid){
     if(pos2id.right.at(posid)=="NN"||pos2id.right.at(posid)=="NR"){
         return true;
     } else {
         return false;
     }
+}
+
+
+std::vector<string> DIRT_From_Zpar(ZparTree ztree){
+
+    auto Tree = ztree;
+
+    auto nodes = Tree.nodes;
+
+    sort(nodes.begin(),nodes.end());
+
+    int ns = nodes.size();
+
+    std::vector<string> res;
+
+    for(int j=0;j<ns-1;j++){
+        if(!is_Entity(nodes[j].pos))
+            continue;
+        for(int k=j+1;k<ns;k++){
+            if(!is_Entity(nodes[k].pos))
+                continue;
+            int  head1 = nodes[j].id;
+            int  head2 = nodes[k].id;
+
+            vector<int>path1 = Tree.getPathFromRoot(head1);
+            vector<int>path2 = Tree.getPathFromRoot(head2);
+
+            auto lca_info  = Tree.getLca(path1,path2);
+
+            vector<int>hx(path1.begin()+std::get<0>(lca_info),path1.end());
+            std::reverse(hx.begin(),hx.end());
+
+            vector<int>hy(path2.begin()+std::get<0>(lca_info),path2.end());
+
+            Path p(head1,hx,std::get<1>(lca_info),head2,hy);
+
+            std::string path_string = clean_path(p,ztree);
+
+            int X_lexeme = ztree.get_Node(head1).lexeme;
+
+            int Y_lexeme = ztree.get_Node(head2).lexeme;
+
+            std::string triple_string = word2id.right.at(X_lexeme)+"\t"+word2id.right.at(Y_lexeme)+"\t"+path_string;
+
+            res.push_back(triple_string);
+        }
+    }
+
+    return res;
+
 }
 
 void ReadDict(std::string path,set<std::string>&verb_dict){
@@ -126,7 +174,15 @@ void ReadDict(std::string path,set<std::string>&verb_dict){
     verb_file.close();
 
 }
-void ReadFromZpar(std::string path,int DocId,vector<ZparTree>&zpars){
+
+void write_triple(std::vector<std::string>triple,ofstream& out){
+
+    for(int i=0;i<triple.size();i++){
+        out<<triple[i]<<std::endl;
+    }
+
+}
+void ReadFromZpar(std::string path,int DocId,ofstream& out){
 
     word2id.insert({"Unknown",0});
     word2id.insert({"*",1});
@@ -148,7 +204,14 @@ void ReadFromZpar(std::string path,int DocId,vector<ZparTree>&zpars){
             zparTree->set_children_array();
             zparTree->idInDocument = DocId;
             zparTree->idInSentence = SentenceId;
-            zpars.push_back(*zparTree);  // store or not store;
+            //zpars.push_back(*zparTree);  // store or not store;
+            std::vector<string> sen_res = DIRT_From_Zpar(*zparTree);
+            write_triple(sen_res,out);
+
+            if(SentenceId%10000==0){
+                cout<<"SentenceId:"<<SentenceId<<endl;
+            }
+
             delete zparTree;
             zparTree = new ZparTree();
             SentenceId++;
@@ -322,6 +385,8 @@ int main() {
 
        Sentences sentences;
 
+       std::ofstream out("/home/wpf/triple",ios::out);
+
        while ((dir = readdir(d)) != NULL)
        {
            if (dir->d_name[0] == '.')
@@ -331,10 +396,9 @@ int main() {
 
            std::string ss = dir->d_name;
 
-
            xmlfile = xmlfile+input_stanford+"/"+ss+".xml";
 
-           ReadFromZpar(filename,DocId,zpars);
+           ReadFromZpar(filename,DocId,out);
 
           // CommonTool::getInfofromStanford(xmlfile,nerTokens,corefers,DocId);
 
@@ -345,99 +409,10 @@ int main() {
 
        //BuildGraph(zpars,graphs,verb_dict,nerTokens,corefers,sentences);   // 可以提出去
 
-       map<std::string,int> term_to_id; int start_term=0;
-
-       map<std::string,int> path_to_id;  int start_path= 0;
-
-       std::map<int,std::map<int,std::map<int,int>>> path_to_terms;
-
-       int test_num=0;clock_t start, finish;
-       start = clock();
-
-       for(int i=0;i<zpars.size();i++){
-           auto Tree = zpars[i];
-
-           auto nodes = Tree.nodes;
-
-           sort(nodes.begin(),nodes.end());
-
-           int ns = nodes.size();
-
-           for(int j=0;j<ns-1;j++){
-               if(!is_Entity(nodes[j].pos))
-                   continue;
-               for(int k=j+1;k<ns;k++){
-                   if(!is_Entity(nodes[k].pos))
-                       continue;
-                   int  head1 = nodes[j].id;
-                   int  head2 = nodes[k].id;
-
-                   vector<int>path1 = Tree.getPathFromRoot(head1);
-                   vector<int>path2 = Tree.getPathFromRoot(head2);
-
-                   auto lca_info  = Tree.getLca(path1,path2);
-
-                   vector<int>hx(path1.begin()+std::get<0>(lca_info),path1.end());
-                   std::reverse(hx.begin(),hx.end());
-
-                   vector<int>hy(path2.begin()+std::get<0>(lca_info),path2.end());
-
-                   Path p(head1,hx,std::get<1>(lca_info),head2,hy);
-
-                   std::string path_string = clean_path(p,zpars[i]);
-
-                   int t1id;
-                   if(term_to_id.find(word2id.right.at(head1))==term_to_id.end()){
-                       term_to_id[word2id.right.at(head1)]=start_term;
-                       t1id = start_term;
-                       start_term++;
-                   } else{
-                       t1id = term_to_id.at(word2id.right.at(head1));
-                   }
-
-                   int t2id;
-                   if(term_to_id.find(word2id.right.at(head2))==term_to_id.end()){
-                       term_to_id[word2id.right.at(head2)]=start_term;
-                       t2id = start_term;
-                       start_term++;
-                   } else{
-                       t2id = term_to_id.at(word2id.right.at(head2));
-                   }
-
-
-                   int pathId;
-                   if(path_to_id.find(path_string)==path_to_id.end()){
-                       path_to_id[path_string]=start_path;
-                       pathId = start_path;
-                       start_path++;
-                   } else{
-                       pathId = path_to_id.at(path_string);
-                   }
-
-                   path_to_terms[pathId][t1id][t2id]++;
-
-               }
-           }
-           if(i%20==0){
-               finish = clock();
-               cout<<"hello test_num::"<<i<<endl;
-               cout<<"time:"<<(finish-start)/1000000<<endl;
-               start=clock();
-           }
-
-       }
 
 
        //抽出所有的np先
 
-
-
-
-       savePhraseIdx(term_to_id,"/home/wpf/term_to_id");
-
-       savePhraseIdx(path_to_id,"/home/wpf/path_to_id");
-
-       savePatternIdx(path_to_terms,"/home/wpf/path_to_terms");
 
        //遍历所有的np对
        closedir(d);
