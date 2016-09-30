@@ -2,6 +2,8 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <functional>
+#include <thread>
 #include "ZparTree.h"
 #include "PhraseGraph.h"
 #include "PhraseTransform.h"
@@ -16,11 +18,17 @@ using namespace std;
 const char* DIRUP = ">";
 
 const char* DIRDOWN = "<";
+
+const int THRED_NUM = 15;
+
+const int MAX_PATH_LEN = 4;
 struct Path{
+    int set_x;
     int X;
     vector<int>hx;
     int lcaId;
     int Y;
+    int set_y;
     vector<int>hy;
     Path(int head1,vector<int>path1,int lca,int head2,vector<int>path2){
         this->X = head1;
@@ -28,8 +36,30 @@ struct Path{
         this->lcaId = lca;
         this->Y = head2;
         this->hy = path2;
+        this->set_x=-1;
+        this->set_y=-1;
     }
 
+    Path(const Path&other){
+        this->X = other.X;
+        this->hx = other.hx;
+        this->lcaId = other.lcaId;
+        this->Y = other.Y;
+        this->hy = other.hy;
+        this->set_x = other.set_x;
+        this->set_y = other.set_y;
+    }
+
+    Path(const Path&other,int set_x,int set_y){
+        this->X = other.X;
+        this->hx = other.hx;
+        this->lcaId = other.lcaId;
+        this->Y = other.Y;
+        this->hy = other.hy;
+
+        this->set_x = set_x;
+        this->set_y = set_y;
+    }
 };
 
 std::string edge_to_string(int id,ZparTree ztree,bool isHead=false){
@@ -64,6 +94,67 @@ std::string argument_to_string(int id,std::string edge_name,ZparTree ztree,bool 
 
     }
 
+bool compare_position(int head,int modifier,ZparTree ztree){
+
+    auto head_node = ztree.get_Node(head);
+    auto modify_node = ztree.get_Node(modifier);
+
+    return head_node.sentense_position>modify_node.sentense_position;
+}
+
+//direction is correct return true
+bool  check_direction(int lca,std::vector<int>hs,bool isLeft,ZparTree ztree){
+    hs.insert(hs.begin(),lca);
+
+    for(int i=0;i<hs.size()-1;i++){
+        if(compare_position(hs[i],hs[i+1],ztree)!=isLeft){
+            return false;
+        }
+    }
+    return true;
+}
+
+
+std::vector<Path> get_satellite_links(Path p,ZparTree ztree){
+
+    std::vector<Path> sateres;
+    sateres.push_back(p);
+
+
+    auto xnode = ztree.get_Node(p.X);
+
+    vector<int> Xchild=ztree.get_children(p.X);
+
+    if(Xchild.size()>0){
+        sort(Xchild.begin(),Xchild.end(),std::bind(PosComp,std::placeholders::_1,std::placeholders::_2,ztree));
+
+        auto child_node = ztree.get_Node(Xchild[0]);
+
+        if(child_node.sentense_position<xnode.sentense_position){
+            sateres.push_back(Path(p,Xchild[0],-1));
+        }
+    }
+
+    auto ynode = ztree.get_Node(p.Y);
+
+    vector<int> Ychild=ztree.get_children(p.Y);
+
+    if(Ychild.size()>0){
+        //children  sort by  sentence pos asc
+        sort(Ychild.begin(),Ychild.end(),std::bind(PosComp,std::placeholders::_1,std::placeholders::_2,ztree));
+
+        for(int i=0;i<Ychild.size();i++){
+            auto child_node = ztree.get_Node(Ychild[i]);
+            if(child_node.sentense_position>xnode.sentense_position){
+                sateres.push_back(Path(p,-1,Ychild[i]));
+            }
+        }
+    }
+
+    return sateres;
+
+}
+
 
 std::string clean_path(Path p1,ZparTree ztree){
     const char* dir_x;
@@ -71,6 +162,21 @@ std::string clean_path(Path p1,ZparTree ztree){
     std::string lch_str;
     bool XisHead= false;
     bool YisHead= false;
+    std::string set_path_x;
+    std::string set_path_y;
+
+    int len_path=0;
+
+    if(p1.set_x!=-1){
+        set_path_x = edge_to_string(p1.set_x,ztree)+DIRDOWN;
+        len_path++;
+    }
+
+    if(p1.set_y!=-1){
+        set_path_y = DIRUP+edge_to_string(p1.set_y,ztree);
+        len_path++;
+    }
+
     if(p1.lcaId==p1.X){
          dir_x= "";
          dir_y = DIRDOWN;
@@ -91,13 +197,19 @@ std::string clean_path(Path p1,ZparTree ztree){
     for(auto iter = p1.hx.begin();iter!=p1.hx.end();iter++){
 
         hx_path+=edge_to_string(*iter,ztree)+DIRUP;
+        len_path++;
     }
 
     for(auto it = p1.hy.begin();it!=p1.hy.end();it++){
         hy_path+=DIRDOWN+edge_to_string(*it,ztree);
+        len_path++;
     }
 
-    cleaned_path = argument_to_string(p1.X,"X",ztree,XisHead)+dir_x+hx_path+lch_str+hy_path+dir_y+argument_to_string(p1.Y,"Y",ztree,YisHead);
+    len_path = len_path+1;  // add lca lenth
+
+    if(len_path<=MAX_PATH_LEN) {
+        cleaned_path = set_path_x+argument_to_string(p1.X,"X",ztree,XisHead)+dir_x+hx_path+lch_str+hy_path+dir_y+argument_to_string(p1.Y,"Y",ztree,YisHead)+set_path_y;
+    }
 
     return  cleaned_path;
 
@@ -141,24 +253,38 @@ std::vector<string> DIRT_From_Zpar(ZparTree ztree){
             vector<int>hy;
             if(std::get<0>(lca_info)+1<=path1.size()){
                 hx.assign(path1.begin()+std::get<0>(lca_info)+1,path1.end());
+                if(!check_direction(std::get<1>(lca_info),hx,true,ztree))
+                    continue;
                 std::reverse(hx.begin(),hx.end());
             }
 
             if(std::get<0>(lca_info)+1<=path2.size()){
                 hy.assign(path2.begin()+std::get<0>(lca_info)+1,path2.end());
+                if(!check_direction(std::get<1>(lca_info),hy,true,ztree))
+                    continue;
             }
+
 
             Path p(head1,hx,std::get<1>(lca_info),head2,hy);
 
-            std::string path_string = clean_path(p,ztree);
+            std::vector<Path> sate_str=get_satellite_links(p,ztree);
 
-            int X_lexeme = ztree.get_Node(head1).lexeme;
+            for(auto p:sate_str){
 
-            int Y_lexeme = ztree.get_Node(head2).lexeme;
+                std::string path_string = clean_path(p,ztree);
 
-            std::string triple_string = word2id.right.at(X_lexeme)+"\t"+word2id.right.at(Y_lexeme)+"\t"+path_string;
+                if(!path_string.empty()){
 
-            res.push_back(triple_string);
+                    int X_lexeme = ztree.get_Node(head1).lexeme;
+
+                    int Y_lexeme = ztree.get_Node(head2).lexeme;
+
+                    std::string triple_string = word2id.right.at(X_lexeme)+"\t"+word2id.right.at(Y_lexeme)+"\t"+path_string;
+
+                    res.push_back(triple_string);
+
+                }
+            }
         }
     }
 
@@ -187,6 +313,15 @@ void write_triple(std::vector<std::string>triple,ofstream& out){
     }
 
 }
+
+void FindTreeStart(ifstream& in){
+
+    std::string line;
+    while(getline(in,line)){
+        if(line=="\n")
+            break;
+    }
+}
 void ReadFromZpar(std::string path,int DocId,ofstream& out){
 
     word2id.insert({"Unknown",0});
@@ -196,6 +331,12 @@ void ReadFromZpar(std::string path,int DocId,ofstream& out){
     dep2id.insert({"*",0});
 
     ifstream Zparfile(path,ios::in);
+
+    /*Zparfile.seekg(std::streamoff(0),std::ios::end);
+    int64_t  filesize  = Zparfile.tellg();   // byte
+
+    Zparfile.clear();
+    Zparfile.seekg(std::streampos(tid*filesize/THRED_NUM));*/
 
     string line;
     string lexeme,pos,parent_id,dependency;
@@ -211,6 +352,7 @@ void ReadFromZpar(std::string path,int DocId,ofstream& out){
             zparTree->idInSentence = SentenceId;
             //zpars.push_back(*zparTree);  // store or not store;
             std::vector<string> sen_res = DIRT_From_Zpar(*zparTree);
+
             write_triple(sen_res,out);
 
             if(SentenceId%10000==0){
@@ -370,6 +512,7 @@ int main() {
 
     const char* input_zpared="/home/wpf/input-zpared";
     const char* input_stanford = "/home/wpf/Downloads/input-stanford";
+    std::thread threads[THRED_NUM];
 
    DIR           *d;
    struct dirent *dir;

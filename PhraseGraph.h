@@ -14,6 +14,8 @@
 #include "SentenceGraph.h"
 
 
+bool PosComp(int nodeid1,int nodeid2,ZparTree ztree);
+
 class PhraseIdentity{
 
 public:
