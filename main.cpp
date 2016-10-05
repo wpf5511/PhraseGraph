@@ -11,6 +11,10 @@
 #include <cereal/archives/xml.hpp>
 #include <dirent.h>
 #include <time.h>
+#include <boost/algorithm/string.hpp>
+
+using namespace boost::algorithm;
+
 using namespace std;
 
 
@@ -216,7 +220,8 @@ std::string clean_path(Path p1,ZparTree ztree){
 }
 
 bool is_Entity(int posid){
-    if(pos2id.right.at(posid)=="NN"||pos2id.right.at(posid)=="NR"){
+    //|pos2id.right.at(posid)=="NN"||pos2id.right.at(posid)=="NR"||pos2id.right.at(posid)=="PN"
+    if(enpos2id.right.at(posid).substr(0,2)=="NN"){
         return true;
     } else {
         return false;
@@ -383,6 +388,81 @@ void ReadFromZpar(std::string path,int DocId,ofstream& out){
     Zparfile.close();
 }
 
+bool is_number(const std::string& s)
+{
+    return !s.empty() && std::find_if(s.begin(),
+                                      s.end(), [](char c) { return !std::isdigit(c); }) == s.end();
+}
+
+
+void ReadFromStanford(std::string path,int DocId,ofstream& out){
+    word2id.insert({"Unknown",0});
+    word2id.insert({"*",1});
+
+    enpos2id.insert({"*",0});
+    dep2id.insert({"*",0});
+
+    ifstream Stanfordfile(path,ios::in);
+
+    string line;
+    string dependency,headinfo,headid,modinfo,modid;
+
+    string lexeme,pos;
+
+    ZparTree *zparTree=new ZparTree();
+
+    int SentenceId = 0;
+
+    std::vector<std::string> v;
+
+    while(getline(Stanfordfile,line)){
+        if(line.empty()){
+            zparTree->set_children_array();
+            zparTree->idInDocument = DocId;
+            zparTree->idInSentence = SentenceId;
+            //zpars.push_back(*zparTree);  // store or not store;
+            std::vector<string> sen_res = DIRT_From_Zpar(*zparTree);
+
+            write_triple(sen_res,out);
+
+            if(SentenceId%10000==0){
+                cout<<"SentenceId:"<<SentenceId<<endl;
+            }
+
+            delete zparTree;
+            zparTree = new ZparTree();
+            SentenceId++;
+        }else if(is_number(line)){
+            continue;
+        }
+        else{
+            istringstream is(line);
+
+            is>>dependency>>headinfo>>headid>>modinfo>>modid;
+
+            split(v,modinfo, boost::is_any_of("/"));
+
+            lexeme = v[0];pos = v[1];
+            if(word2id.left.find(lexeme)==word2id.left.end()){
+                word2id.insert({lexeme,start_wid++});
+            }
+
+            if(dep2id.left.find(dependency)==dep2id.left.end()){
+                dep2id.insert({dependency,start_did++});
+            }
+
+            if(enpos2id.left.find(pos)==enpos2id.left.end()){
+                enpos2id.insert({pos,start_pid++});
+            }
+
+            zparTree->add_node(ZparNode(word2id.left.at(lexeme),enpos2id.left.at(pos),stoi(headid)-1,dep2id.left.at(dependency),DocId,SentenceId));
+        }
+    }
+
+    Stanfordfile.close();
+
+}
+
 void extractNEP(std::vector<Token> tokens, std::map<SentenceIdentity, NEPMAP> &senNEP){
 
     std::string phraseNer = "newPhrase";
@@ -546,7 +626,8 @@ int main() {
 
            xmlfile = xmlfile+input_stanford+"/"+ss+".xml";
 
-           ReadFromZpar(filename,DocId,out);
+           //ReadFromZpar(filename,DocId,out);
+           ReadFromStanford(filename,DocId,out);
 
           // CommonTool::getInfofromStanford(xmlfile,nerTokens,corefers,DocId);
 

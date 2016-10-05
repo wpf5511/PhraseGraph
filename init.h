@@ -17,10 +17,14 @@ typedef boost::bimap<std::string, int> bimap;
 int start_wid=2;
 int start_did=1;
 
+int start_pid = 1;
+
 
 bimap  word2id;
 
 bimap  dep2id;
+
+bimap  enpos2id;
 
 bimap pos2id = boost::assign::list_of< bimap::relation >
         ("AD",1)
