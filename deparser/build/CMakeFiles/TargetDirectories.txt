@@ -1,0 +1,2 @@
+/home/wpf/hanspd/deparser/build/CMakeFiles/train_deparser.dir
+/home/wpf/hanspd/deparser/build/CMakeFiles/deparser.dir

@@ -11,48 +11,102 @@
 #include <iostream>
 #include <boost/bimap.hpp>
 #include <boost/assign.hpp>
+#include <fstream>
+#include <iostream>
+#include "ZparTree.h"
+#include "PhraseGraph.h"
+
+
+using  namespace std;
 
 typedef boost::bimap<std::string, int> bimap;
 
-int start_wid=2;
-int start_did=1;
+extern  int start_wid;
+extern  int start_did;
 
 
-bimap  word2id;
+ extern bimap  word2id;
 
-bimap  dep2id;
+ extern bimap  dep2id;
 
-bimap pos2id = boost::assign::list_of< bimap::relation >
-        ("AD",1)
-("AS",2)
-("BA",3)
-("CC",4)
-("CD",5)
-("CS",6)
-("DEC",7)
-("DEG",8)
-("DER",9)
-("DEV",10)
-("DT",11)
-("ETC",12)
-("FW",13)
-("IJ",14)
-("JJ",15)
-("LB",16)
-("LC",17)
-("M",18)
-("MSP",19)
-("NN",20)
-("NR",21)
-("NT",22)
-("OD",23)
-("ON",24)
-("P",25)
-("PN",26)
-("PU",27)
-("SB",28)
-("SP",29)
-("VA",30)
-("VC",31)
-("VE",32)
-("VV",33);
+
+ bimap& pos2id();
+
+struct Path{
+    int set_x;
+    int X;
+    vector<int>hx;
+    int lcaId;
+    int Y;
+    int set_y;
+    vector<int>hy;
+    Path(int head1,vector<int>path1,int lca,int head2,vector<int>path2){
+        this->X = head1;
+        this->hx = path1;
+        this->lcaId = lca;
+        this->Y = head2;
+        this->hy = path2;
+        this->set_x=-1;
+        this->set_y=-1;
+    }
+
+    Path(const Path&other){
+        this->X = other.X;
+        this->hx = other.hx;
+        this->lcaId = other.lcaId;
+        this->Y = other.Y;
+        this->hy = other.hy;
+        this->set_x = other.set_x;
+        this->set_y = other.set_y;
+    }
+
+    Path(const Path&other,int set_x,int set_y){
+        this->X = other.X;
+        this->hx = other.hx;
+        this->lcaId = other.lcaId;
+        this->Y = other.Y;
+        this->hy = other.hy;
+
+        this->set_x = set_x;
+        this->set_y = set_y;
+    }
+};
+
+extern const char* DIRUP;
+
+extern const char* DIRDOWN;
+
+const int MAX_PATH_LEN = 4;
+
+
+void ReadFromZpar(std::string path,int DocId,ofstream& out);
+
+std::string DIRT_X_Y(ZparTree ztree);
+
+std::vector<string> DIRT_From_Zpar(ZparTree ztree);
+
+void write_triple(std::vector<std::string>triple,ofstream& out);
+
+void write_quadruple(std::vector<std::string>triple,ofstream& out,int sentId);
+
+bool is_Entity(int posid);
+
+bool is_X(int wordid);
+
+bool is_Y(int wordid);
+
+bool  check_direction(int lca,std::vector<int>hs,bool isLeft,ZparTree ztree);
+
+bool compare_position(int head,int modifier,ZparTree ztree);
+
+std::vector<Path> get_satellite_links(Path p,ZparTree ztree);
+
+std::string clean_path(Path p1,ZparTree ztree);
+
+std::string edge_to_string(int id,ZparTree ztree,bool isHead=false);
+
+std::string argument_to_string(int id,std::string edge_name,ZparTree ztree,bool isHead);
+
+
+
+

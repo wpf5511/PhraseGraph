@@ -5,47 +5,48 @@
 #include "PhraseGraph.h"
 #include <cmath>
 #include <algorithm>
-#include <boost/bimap.hpp>
+#include "init.h"
 
-extern boost::bimap<std::string, int> word2id,pos2id,dep2id;
+extern bimap word2id;
+extern bimap dep2id;
 
 std::map<int,bool>  PhraseGraph::hashPOSOfNoun{
-        {pos2id.left.at("NN"), true},
-        {pos2id.left.at("NR"), true},
-        {pos2id.left.at("NT"), true},
-        {pos2id.left.at("PN"), true},
-        {pos2id.left.at("M"),  true}
+        {pos2id().left.at("NN"), true},
+        {pos2id().left.at("NR"), true},
+        {pos2id().left.at("NT"), true},
+        {pos2id().left.at("PN"), true},
+        {pos2id().left.at("M"),  true}
 };
 
 
 std::map<int,bool> PhraseGraph::hashPOSOfVerb{
-        {pos2id.left.at("VV"), true},
-        {pos2id.left.at("VC"), true},
-        {pos2id.left.at("VA"), true},
-        {pos2id.left.at("VE"), true}
+        {pos2id().left.at("VV"), true},
+        {pos2id().left.at("VC"), true},
+        {pos2id().left.at("VA"), true},
+        {pos2id().left.at("VE"), true}
 };
 
 std::map<int,bool> PhraseGraph::hashPOSOfNPHead{
-        {pos2id.left.at("NN"), true},
-        {pos2id.left.at("NR"), true},
-        {pos2id.left.at("NT"), true},
-        {pos2id.left.at("PN"), true},
-        {pos2id.left.at("M"),  true}
+        {pos2id().left.at("NN"), true},
+        {pos2id().left.at("NR"), true},
+        {pos2id().left.at("NT"), true},
+        {pos2id().left.at("PN"), true},
+        {pos2id().left.at("M"),  true}
 
 };
 
 
 std::map<int,bool> PhraseGraph::hashPOSOfNOModifier{
-        {pos2id.left.at("NN"), true},
-        {pos2id.left.at("NR"), true},
-        {pos2id.left.at("NT"), true},
-        {pos2id.left.at("PN"), true},
-        {pos2id.left.at("M"),  true},
-        {pos2id.left.at("CD"), true},
-        {pos2id.left.at("OD"), true},
-        {pos2id.left.at("JJ"), true},
-        {pos2id.left.at("CC"), true}, //和
-        {pos2id.left.at("DEG"), true} //的
+        {pos2id().left.at("NN"), true},
+        {pos2id().left.at("NR"), true},
+        {pos2id().left.at("NT"), true},
+        {pos2id().left.at("PN"), true},
+        {pos2id().left.at("M"),  true},
+        {pos2id().left.at("CD"), true},
+        {pos2id().left.at("OD"), true},
+        {pos2id().left.at("JJ"), true},
+        {pos2id().left.at("CC"), true}, //和
+        {pos2id().left.at("DEG"), true} //的
 
 };
 void PhraseGraph::extract_Phrases(std::map<PhraseIdentity,Phrase*> &phrase_map) {
@@ -238,7 +239,7 @@ void PhraseGraph::dfscm(int start,int previous,Phrase* extract_phrase,int* globa
 
         int DocId = ztree.idInDocument; int SenId = ztree.idInSentence;
 
-        ZparNode slot_node = ZparNode(word2id.left.at("*"),pos2id.left.at("*"),previous,slot_dep,DocId,SenId,true,true,start);  //注意根是名词的情况
+        ZparNode slot_node = ZparNode(word2id.left.at("*"),pos2id().left.at("*"),previous,slot_dep,DocId,SenId,true,true,start);  //注意根是名词的情况
 
         int slot_id = ztree.nodes.size();
 
@@ -401,7 +402,7 @@ void PhraseGraph::dfsvv(int start,int previous,int *visited,Phrase* extract_phra
 
         int DocId = ztree.idInDocument; int SenId = ztree.idInSentence;
 
-        ZparNode slot_node = ZparNode(word2id.left.at("*"),pos2id.left.at("*"),slot_parent,slot_dep, DocId,SenId,true, true,start);
+        ZparNode slot_node = ZparNode(word2id.left.at("*"),pos2id().left.at("*"),slot_parent,slot_dep, DocId,SenId,true, true,start);
 
         int slot_id = ztree.nodes.size();
 

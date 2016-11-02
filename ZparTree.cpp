@@ -7,10 +7,11 @@
 #include <boost/bimap.hpp>
 #include <iostream>
 #include <algorithm>
+#include "init.h"
 
 //ZparNode method
 
-extern boost::bimap<std::string, int> word2id,pos2id,dep2id;
+extern boost::bimap<std::string, int> word2id,dep2id;
 
 ZparNode::ZparNode(int lexeme, int pos, int parent_id, int dependency,int idInDocument,int idInSentence,
                    bool isVirtual,bool isSlot,int link,int level) {
@@ -160,24 +161,24 @@ void ZparTree::preprocessing(std::set<std::string> verb_dict) {
 
     for(int i=0;i<this->nodes.size();i++){
         auto & znode= get_Node(nodes[i].id);   // before process id is i
-        if(znode.pos==pos2id.left.at("NN")){
+        if(znode.pos==pos2id().left.at("NN")){
 
             std::string word = word2id.right.at(znode.lexeme);
             if(verb_dict.find(word)!=verb_dict.end()){
-                znode.pos = pos2id.left.at("VV");
+                znode.pos = pos2id().left.at("VV");
             }
         }
-        if(znode.pos==pos2id.left.at("DEC")){
+        if(znode.pos==pos2id().left.at("DEC")){
             int parent_id = znode.parent_id;
 	    if(parent_id!=-1){
             ZparNode dec_parent = get_Node(parent_id);
             int dec_parent_pos = dec_parent.pos;
-            if(dec_parent_pos==pos2id.left.at("VA")||dec_parent_pos==pos2id.left.at("VC")||dec_parent_pos==pos2id.left.at("VE")||dec_parent_pos==pos2id.left.at("VV")){
+            if(dec_parent_pos==pos2id().left.at("VA")||dec_parent_pos==pos2id().left.at("VC")||dec_parent_pos==pos2id().left.at("VE")||dec_parent_pos==pos2id().left.at("VV")){
 
                 znode.parent_id =nodes.size();
 
                 int DocId = znode.idInDocument;int SentenceId = znode.idInSentence;
-                add_node(ZparNode(word2id.left.at("Unknown"),pos2id.left.at("NN"),parent_id,znode.dependency,DocId,SentenceId),znode.sentense_position+1);
+                add_node(ZparNode(word2id.left.at("Unknown"),pos2id().left.at("NN"),parent_id,znode.dependency,DocId,SentenceId),znode.sentense_position+1);
 
                 znode.dependency=dep2id.left.at("NMOD");
             }
@@ -206,8 +207,12 @@ std::vector<int> ZparTree::getPathFromRoot(int nodeid){
     auto node =get_Node(nodeid);
     std::vector<int>path;
 
+    path.push_back(nodeid);
+
     while(node.parent_id!=-1){
+
         node = get_Node(node.parent_id);
+
         path.push_back(node.id);
     }
     std::reverse(path.begin(),path.end());
@@ -234,13 +239,8 @@ std::tuple<int,int>  ZparTree::getLca(std::vector<int> path1,std::vector<int> pa
             break;
     }
 
-    i--;
-    if(path1[i]==path2[i]){
-        int lca_idx = i;
-        return  std::make_tuple(lca_idx,path1[lca_idx]);
-    } else{
-        int lca_idx = i-1;
-        return std::make_tuple(lca_idx,path1[lca_idx]);
-    }
+    int lca_idx = i-1;
+    return std::make_tuple(lca_idx,path1[lca_idx]);
+
 }
 
